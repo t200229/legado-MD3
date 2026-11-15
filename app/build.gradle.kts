@@ -115,11 +115,11 @@ android {
         }
         // 共存交付变体：与原版 io.legato.kazusa 同时安装。
         // 只改后缀，不动 defaultConfig 的 applicationId；仅 arm64-v8a，
-        // 桌面名加 Mochi 后缀以便和原版区分；versionName 不加后缀。
+        // 包名后缀 .legato，桌面名“阅读”；versionName 不加后缀。
         create("mochiRelease") {
             initWith(getByName("release"))
-            applicationIdSuffix = ".mochi"
-            manifestPlaceholders["app_name"] = "Legado Mochi"
+            applicationIdSuffix = ".legato"
+            manifestPlaceholders["app_name"] = "阅读"
             matchingFallbacks += listOf("release")
             ndk {
                 abiFilters += "arm64-v8a"
