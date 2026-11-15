@@ -146,3 +146,20 @@
 -dontwarn java.lang.management.**
 -dontwarn io.ktor.util.debug.IntellijIdeaDebugDetector
 -keep,allowobfuscation class io.ktor.util.debug.** { *; }
+
+# MediaPipe Tasks Vision：原生方法按原始类名绑定（Java_com_google_mediapipe_...），
+# R8 一旦改名，so 加载/调用就失败，眼动翻页报 ExceptionInInitializerError。
+# tasks-vision AAR 自身不带 consumer 规则，必须由应用保留。
+-keep class com.google.mediapipe.** { *; }
+# 上面的 keep 让 R8 必须解析 framework 类引用的两个 proto 类，但它们不在
+# classpath 里（只被 GraphProfiler.getCalculatorProfiles /
+# Graph.loadBinaryGraphTemplate 这两条 FaceLandmarker 根本不走的死代码引用）。
+# 这两行是 R8 自己生成的 missing_rules.txt 的原样内容：只消警告，不改行为。
+-dontwarn com.google.mediapipe.proto.CalculatorProfileProto$CalculatorProfile
+-dontwarn com.google.mediapipe.proto.GraphTemplateProto$CalculatorGraphTemplate
+
+# Flogger（MediaPipe 的 Graph 用 FluentLogger.forEnclosingClass()）：
+# 它靠遍历调用栈找调用方，R8 一旦内联/改名，栈里找不到对应帧就抛
+# IllegalStateException: no caller found on the stack，导致 Graph
+# 静态初始化失败（ExceptionInInitializerError → NoClassDefFoundError）。
+-keep class com.google.common.flogger.** { *; }

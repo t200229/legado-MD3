@@ -373,6 +373,19 @@ data class ReadBookUiState(
     val menuConfig: ReadMenuConfig = ReadMenuConfig(),
     // AI 域状态见 ReadAiUiState —— 由 ReadAiDelegate 独立持有
     val eyeProtection: EyeProtectionUiState = EyeProtectionUiState(),
+    // 眼动翻页：开关持久化在 ReadBookConfig，UiState 只做界面快照（菜单勾选态与宿主启停）。
+    val eyePageTurnEnabled: Boolean = false,
+    val eyePageGazePointEnabled: Boolean = false,
+    /** 落点样式快照（与 ReadSettings 同步，供样式面板读初值）。 */
+    val eyeGazePointColor: Int = 0xFF9E9E9E.toInt(),
+    val eyeGazePointAlpha: Int = 20,
+    val eyeGazePointSize: Int = 20,
+    /** 首次开启眼动翻页的使用说明是否正在显示（只显示一次，确认后才请求摄像头权限）。 */
+    val eyePageHelpVisible: Boolean = false,
+    /** 重新校准请求计数；宿主每次递增后让协调器重开校准流程。 */
+    val eyePageRecalibrateNonce: Long = 0L,
+    /** 落点样式提交计数；宿主每次递增后让协调器重读颜色/透明度/大小。 */
+    val eyeGazePointStyleNonce: Long = 0L,
 ) {
     val activeSheet: ReadBookSheet?
         get() = sheetStack.lastOrNull()
@@ -575,7 +588,7 @@ internal val MoreActionIds = listOf(
     "text_processing", "reverse_content", "re_segment",
     "del_ruby", "del_h", "toc_rule", "charset", "image_style", "page_anim",
     "simulated_reading", "get_progress", "cover_progress", "highlight_rule", "read_style",
-    "bubble_style", "bottom_button_config", "log",
+    "bubble_style", "bottom_button_config", "log", "eye_page",
 )
 
 @Immutable
@@ -653,6 +666,21 @@ sealed interface ReadBookIntent {
     // Auto page
     data object ToggleAutoPage : ReadBookIntent
     data object StopAutoPage : ReadBookIntent
+
+    // Eye page turn (ported from legadoC; camera host lives in ReadBookRouteScreen)
+    data object ToggleEyePageTurn : ReadBookIntent
+    data class SetEyePageTurnEnabled(val enabled: Boolean) : ReadBookIntent
+    data object EyePageHelpConfirmed : ReadBookIntent
+    data object DismissEyePageHelp : ReadBookIntent
+    data class EyePageTurnFailed(val message: String) : ReadBookIntent
+    data object ToggleEyeGazePoint : ReadBookIntent
+    data object RecalibrateEyePageTurn : ReadBookIntent
+    data class EyePageCalibrationSaved(val profile: String) : ReadBookIntent
+    data class EyeGazePointStyleChanged(
+        val color: Int? = null,
+        val alpha: Int? = null,
+        val size: Int? = null,
+    ) : ReadBookIntent
 
     // Content operations
     data object RefreshCurrentChapter : ReadBookIntent
@@ -1326,6 +1354,8 @@ sealed interface ReadBookSheet {
     data object SimulatedReading : ReadBookSheet
     data object ToolButtonConfig : ReadBookSheet
     data object EyeProtection : ReadBookSheet
+    /** 眼动落点样式（颜色 / 透明度 / 大小）。 */
+    data object EyeGazePointStyle : ReadBookSheet
     data object FloatingBarIconConfig : ReadBookSheet
 
     /** 顶栏按钮配置（共用浮动图标/底栏的图标池）。 */

@@ -442,6 +442,14 @@ object PreferKey {
     /** 正文里图片形式的段评入口是否强制用软件气泡渲染。 */
     const val forceSoftwareParagraphBubble = "forceSoftwareParagraphBubble"
     const val paragraphCommentHeightPercent = "paragraphCommentHeightPercent"
+    /** 眼动翻页（自 legadoC 移植）：开关、校准结果与落点样式，走 ReadSettingsGateway。 */
+    const val eyePageTurnHelpShown = "eyePageTurnHelpShown"
+    const val eyePageTurnEnabled = "eyePageTurnEnabled"
+    const val eyePageCalibration = "eyePageCalibration"
+    const val eyePageGazePointEnabled = "eyePageGazePointEnabled"
+    const val eyePageGazePointColor = "eyePageGazePointColor"
+    const val eyePageGazePointAlpha = "eyePageGazePointAlpha"
+    const val eyePageGazePointSize = "eyePageGazePointSize"
     //我在干什么
 
     const val disableMangaScrollAnimation = "disableMangaScrollAnimation"

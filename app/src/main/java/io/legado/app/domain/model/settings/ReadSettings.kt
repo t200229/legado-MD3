@@ -125,6 +125,15 @@ data class ReadSettings(
     val moreActionsConfig: String = "",
     /** 0 表示使用书源提供的弹窗高度。 */
     val paragraphCommentHeightPercent: Int = 0,
+    /** 眼动翻页（自 legadoC 移植）：首次开启说明是否已显示过。 */
+    val eyePageTurnHelpShown: Boolean = false,
+    val eyePageTurnEnabled: Boolean = false,
+    /** 已保存的眼动校准（版本 2 编码）；空字符串表示未校准。 */
+    val eyePageCalibration: String = "",
+    val eyePageGazePointEnabled: Boolean = false,
+    val eyePageGazePointColor: Int = 0xFF9E9E9E.toInt(),
+    val eyePageGazePointAlpha: Int = 20,
+    val eyePageGazePointSize: Int = 20,
 ) {
     companion object {
         internal val paragraphCommentHeightOptions = listOf(0, 30, 50, 70, 90, 100)

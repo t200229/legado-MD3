@@ -149,11 +149,17 @@ fun SplicedColumnGroup(
             if (title.isNotEmpty()) MochiListSectionHeader(title)
             val shape = MochiRoundedRectangle(cornerRadius)
             val colors = MochiListDefaults.colors()
+            // 分组卡片底色不要用 Mochi 库默认的 groupedContainer()：浅色下它是
+            // surfaceContainerLowest，各主题基本都是纯白，看起来像写死的白色。
+            // 改成 surfaceContainer：每个主题都有自己的 tint（例如隐海修会浅色 #FBEAEB、
+            // 深色 #261D1F），切主题/深浅色都会跟着变；同时它和页面底色 background
+            // （AppScaffold 用 background）始终差一档，卡片不会融进页面。
+            // 深色下 surfaceContainer 也是 Mochi 库 groupedContainer() 本身用的值。
             MochiListCard(
                 modifier = Modifier
                     .clip(shape)
                     .then(border?.let { Modifier.border(it, shape) } ?: Modifier)
-                    .background(colors.container)
+                    .background(LegadoTheme.colorScheme.surfaceContainer)
                     .appContainerBackground(AppContainerBackgroundType.Large),
                 colors = MochiListDefaults.colors(
                     container = Color.Transparent,
@@ -207,11 +213,14 @@ fun SplicedColumnGroup(
                     }
                 }
                 ComposeEngine.Material, ComposeEngine.Mochi, ComposeEngine.Coui -> {
+                    // Material 引擎之前没有画卡片底色：组是透明的，只剩文字浮在页面底色上。
+                    // 和 Mochi 分支用同一个 token（surfaceContainer），切主题/深浅色一起跟。
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .animateContentSize()
                             .clip(RoundedCornerShape(cornerRadius))
+                            .background(LegadoTheme.colorScheme.surfaceContainer)
                     ) {
                         Spacer(
                             modifier = Modifier

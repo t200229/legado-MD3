@@ -77,6 +77,8 @@ import io.legado.app.constant.ReadMenuBlurMode
 import io.legado.app.feature.reader.ReaderBackgroundSurface
 import io.legado.app.feature.reader.ReaderCanvasSurface
 import io.legado.app.feature.reader.core.gesture.ReaderTapActionGrid
+import io.legado.app.feature.reader.core.model.ReaderPage
+import io.legado.app.feature.reader.core.model.ReaderPageWindow
 import io.legado.app.feature.reader.core.model.readerBackgroundAlpha
 import io.legado.app.feature.reader.core.transition.ReaderPageTurnSpeed
 import io.legado.app.feature.reader.core.transition.ReaderTransitionMode
@@ -85,6 +87,7 @@ import io.legado.app.help.IntentHelp
 import io.legado.app.model.ReadBook
 import io.legado.app.model.SourceCallBack
 import io.legado.app.model.translation.TranslationChapterStatus
+import io.legado.app.ui.book.read.eye.EyePageHost
 import io.legado.app.ui.book.read.page.entities.PageDirection
 import io.legado.app.ui.book.read.sheet.CastSheetVisuals
 import io.legado.app.ui.book.read.sheet.LocalCastSheetVisuals
@@ -645,6 +648,14 @@ fun ReadBookRouteScreen(
     }
     val displayedReaderPageWindow =
         readerPageWindow.takeIf { it.current != null } ?: lastReadablePageWindow
+    // 眼动「上看翻页」提示出现时，临时藏起页脚内容（照 legadoC：提示出现时页脚信息
+    // 隐藏，提示消失时恢复）。提示显隐是 UI 层瞬态状态，不进 ViewModel。
+    var eyeHintVisible by remember { mutableStateOf(false) }
+    val displayedPagesForCanvas =
+        remember(displayedReaderPageWindow, readerPageWindow, eyeHintVisible) {
+            val window = displayedReaderPageWindow ?: readerPageWindow
+            if (eyeHintVisible) window.withFootersHidden() else window
+        }
     // 消息（`state.msg`）由画布按普通页绘制：旧 View 的取页器在 `msg != null` 时整窗返回
     // 消息页（chrome 保留），所以画布不再因为 msg 隐藏。保留的上一窗只用于跨章瞬间；
     // 真正的排版失败仍要让位给可重试的错误态，不能留着过期正文。
@@ -716,7 +727,7 @@ fun ReadBookRouteScreen(
             ) {
                 ReaderPerfTrace.marker("compose.canvas.begin")
                 ReaderCanvasSurface(
-                    hostPages = displayedReaderPageWindow ?: readerPageWindow,
+                    hostPages = displayedPagesForCanvas,
                     redrawRevision = readerRenderState.redrawRevision,
                     transitionMode = readerTransitionMode,
                     pageTurnSpeed = ReaderPageTurnSpeed.fromValue(state.styleConfig.pageAnimSpeed),
@@ -1030,6 +1041,19 @@ fun ReadBookRouteScreen(
             }
             ReaderPerfTrace.marker("compose.selection.end")
         }
+        // 眼动翻页宿主：常驻组合（不随 featureOverlaysInitialized 门控），
+        // 校准 overlay 与落点/提示画在菜单与弹层之上。
+        EyePageHost(
+            state = state,
+            onIntent = viewModel::onIntent,
+            onNextPage = {
+                controller.completeComposePageTurn(PageDirection.NEXT)
+                controller.screenOffTimerStart()
+            },
+            textSelected = selectionMenuState.value?.selectedText?.isNotEmpty() == true,
+            backgroundColor = readerSurfaceColor,
+            onReadyHintChanged = { eyeHintVisible = it },
+        )
         ReaderPerfTrace.marker("compose.chrome.end")
     }
     ReaderPerfTrace.marker("compose.screen.end")
@@ -1214,3 +1238,16 @@ internal fun rememberReadStyleFilePickers(
         }
     }
 }
+
+/** 眼动提示出现时临时藏起一页的页脚（照 legadoC：提示出现时页脚信息隐藏）。 */
+private fun ReaderPage.withFooterHidden(): ReaderPage =
+    copy(decoration = decoration.copy(footer = decoration.footer?.copy(visible = false)))
+
+/** 眼动提示出现时临时藏起整窗各页的页脚。 */
+private fun ReaderPageWindow.withFootersHidden(): ReaderPageWindow =
+    copy(
+        previous = previous?.withFooterHidden(),
+        current = current?.withFooterHidden(),
+        next = next?.withFooterHidden(),
+        nextPlus = nextPlus?.withFooterHidden(),
+    )

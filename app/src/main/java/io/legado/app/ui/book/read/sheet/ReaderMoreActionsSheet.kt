@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -210,14 +211,16 @@ private fun ActionSquareHost(
 ) {
     var expanded by remember(action.id) { mutableStateOf(false) }
     val hasMore = action.id == "change_source" || action.id == "refresh" ||
-            action.id == "source_custom_button"
+            action.id == "source_custom_button" || action.id == "eye_page"
     Box(modifier = modifier) {
         ReaderMenuActionSquare(
             icon = action.icon,
             text = action.label,
             selected = action.selected,
             hasMore = hasMore,
-            onClick = if (action.id == "image_style" || action.id == "page_anim") {
+            onClick = if (action.id == "image_style" || action.id == "page_anim" ||
+                action.id == "eye_page"
+            ) {
                 { expanded = true }
             } else {
                 action.onClick
@@ -320,6 +323,50 @@ private fun ActionSquareHost(
                 modifier = Modifier.matchParentSize(),
                 onDismissRequest = { expanded = false },
                 onIntent = onIntent,
+            )
+
+            // 眼动：只一个入口，点开展开三项 + 落点样式；开关项只发 Intent，
+            // 不关整张表，让用户能看到勾选态。
+            "eye_page" -> AppActionMenu(
+                groups = persistentListOf(
+                    AppActionGroup(
+                        id = ReaderMoreEyeGroup,
+                        actions = persistentListOf(
+                            AppAction(
+                                id = ReaderMoreEyeToggle,
+                                label = stringResource(R.string.eye_page_turn),
+                                checked = state.eyePageTurnEnabled,
+                            ),
+                            AppAction(
+                                id = ReaderMoreEyeRecalibrate,
+                                label = stringResource(R.string.eye_page_recalibrate_now),
+                            ),
+                            AppAction(
+                                id = ReaderMoreEyeGazePoint,
+                                label = stringResource(R.string.eye_page_gaze_point),
+                                checked = state.eyePageGazePointEnabled,
+                            ),
+                            AppAction(
+                                id = ReaderMoreEyeGazeStyle,
+                                label = stringResource(R.string.eye_page_gaze_point_settings),
+                            ),
+                        ),
+                    ),
+                ),
+                onAction = { id ->
+                    when (id) {
+                        ReaderMoreEyeToggle -> onIntent(ReadBookIntent.ToggleEyePageTurn)
+                        ReaderMoreEyeRecalibrate ->
+                            dispatch(ReadBookIntent.RecalibrateEyePageTurn)
+                        ReaderMoreEyeGazePoint -> onIntent(ReadBookIntent.ToggleEyeGazePoint)
+                        ReaderMoreEyeGazeStyle ->
+                            onIntent(ReadBookIntent.ShowSheet(ReadBookSheet.EyeGazePointStyle))
+                    }
+                },
+                modifier = Modifier.matchParentSize(),
+                embeddedExpanded = expanded,
+                onDismissRequest = { expanded = false },
+                trigger = {},
             )
         }
     }
@@ -456,6 +503,10 @@ private fun moreActionSpecs(
         "simulated_reading", stringResource(R.string.simulated_reading), Icons.Default.AutoStories,
         onClick = { onIntent(ReadBookIntent.ShowSheet(ReadBookSheet.SimulatedReading)) }),
     MoreActionSpec(
+        "eye_page", stringResource(R.string.eye_page), Icons.Default.Visibility,
+        selected = state.eyePageTurnEnabled,
+        onClick = {}),
+    MoreActionSpec(
         "get_progress", stringResource(R.string.get_book_progress), Icons.Default.Sync,
         applicable = state.inBookshelf && state.isReadingProgressSyncConfigured,
         onClick = { dispatch(ReadBookIntent.MenuGetProgress) }),
@@ -488,6 +539,11 @@ private const val ReaderMoreImageStyleGroup = "reader_more_image_style"
 private const val ReaderMoreImageStyleIdPrefix = "reader_more_image_style:"
 private const val ReaderMorePageAnimGroup = "reader_more_page_anim"
 private const val ReaderMorePageAnimIdPrefix = "reader_more_page_anim:"
+private const val ReaderMoreEyeGroup = "reader_more_eye_page"
+private const val ReaderMoreEyeToggle = "reader_more_eye_page_toggle"
+private const val ReaderMoreEyeRecalibrate = "reader_more_eye_page_recalibrate"
+private const val ReaderMoreEyeGazePoint = "reader_more_eye_page_gaze_point"
+private const val ReaderMoreEyeGazeStyle = "reader_more_eye_page_gaze_style"
 
 @Composable
 private fun ImageStyleDropdown(

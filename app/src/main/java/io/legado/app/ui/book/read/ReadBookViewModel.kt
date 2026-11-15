@@ -207,6 +207,25 @@ class ReadBookViewModel(
     private fun closeReadMenu() {
         _uiState.update { it.copy(menuState = ReadBookMenuState()) }
     }
+
+    /**
+     * 眼动开关的唯一写入点：界面快照立即更新，持久化走 ReadSettingsGateway。
+     * 开启时停掉自动翻页（与来源一致：两者不同时运行）。
+     */
+    private fun setEyePageTurnEnabled(enabled: Boolean) {
+        // 开启眼动翻页会立刻进校准，而校准要求菜单已关（canCalibrate 要 !menuVisible）；
+        // 从 ⋮ 菜单里开启时，关 sheet 后底层菜单仍开着（关 sheet 只弹栈、不关菜单），
+        // 校准 overlay 又盖住全屏、挡住触摸，用户关不掉菜单，校准会永远暂停。
+        // 所以开启时顺手把菜单也关了。
+        _uiState.update {
+            if (enabled) it.copy(eyePageTurnEnabled = true, menuState = ReadBookMenuState())
+            else it.copy(eyePageTurnEnabled = false)
+        }
+        viewModelScope.launch {
+            readSettingsRepository.update { it.copy(eyePageTurnEnabled = enabled) }
+        }
+        if (enabled) _effects.tryEmit(ReadBookEffect.StopAutoPage)
+    }
     /**
      * 直接打开书籍详情（跳过阅读信息 Sheet，长按标题胶囊时使用）。
      */
@@ -667,6 +686,17 @@ class ReadBookViewModel(
         collectReadStyle()
         readingProgressSyncDelegate.start()
         replaceRuleDelegate.start()
+        // 眼动开关是持久化偏好：界面快照在 VM 创建时从 ReadBookConfig 读一次，
+        // 之后只经眼动 Intent 改写（配置与快照同一处提交，不另起 flow）。
+        _uiState.update {
+            it.copy(
+                eyePageTurnEnabled = ReadBookConfig.eyePageTurnEnabled,
+                eyePageGazePointEnabled = ReadBookConfig.eyePageGazePointEnabled,
+                eyeGazePointColor = ReadBookConfig.eyePageGazePointColor,
+                eyeGazePointAlpha = ReadBookConfig.eyePageGazePointAlpha,
+                eyeGazePointSize = ReadBookConfig.eyePageGazePointSize,
+            )
+        }
     }
 
     /** Starts non-renderer features only after navigation/shared-bounds animation is idle. */
@@ -907,6 +937,83 @@ class ReadBookViewModel(
 
             is ReadBookIntent.ToggleAutoPage -> _effects.tryEmit(ReadBookEffect.ToggleAutoPage)
             is ReadBookIntent.StopAutoPage -> _effects.tryEmit(ReadBookEffect.StopAutoPage)
+
+            is ReadBookIntent.ToggleEyePageTurn -> {
+                if (_uiState.value.eyePageTurnEnabled) {
+                    setEyePageTurnEnabled(false)
+                } else if (!ReadBookConfig.eyePageTurnHelpShown) {
+                    _uiState.update { it.copy(eyePageHelpVisible = true) }
+                } else {
+                    setEyePageTurnEnabled(true)
+                }
+            }
+            is ReadBookIntent.SetEyePageTurnEnabled -> setEyePageTurnEnabled(intent.enabled)
+            is ReadBookIntent.EyePageHelpConfirmed -> {
+                _uiState.update { it.copy(eyePageHelpVisible = false) }
+                viewModelScope.launch {
+                    readSettingsRepository.update { it.copy(eyePageTurnHelpShown = true) }
+                }
+            }
+            is ReadBookIntent.DismissEyePageHelp -> {
+                _uiState.update { it.copy(eyePageHelpVisible = false) }
+            }
+            is ReadBookIntent.EyePageTurnFailed -> {
+                setEyePageTurnEnabled(false)
+                _effects.tryEmit(
+                    ReadBookEffect.ShowToast(context.getString(R.string.eye_page_error, intent.message))
+                )
+            }
+            is ReadBookIntent.ToggleEyeGazePoint -> {
+                val enabled = !_uiState.value.eyePageGazePointEnabled
+                _uiState.update { it.copy(eyePageGazePointEnabled = enabled) }
+                viewModelScope.launch {
+                    readSettingsRepository.update { it.copy(eyePageGazePointEnabled = enabled) }
+                }
+            }
+            is ReadBookIntent.RecalibrateEyePageTurn -> {
+                if (_uiState.value.eyePageTurnEnabled) {
+                    viewModelScope.launch {
+                        readSettingsRepository.update { it.copy(eyePageCalibration = "") }
+                    }
+                    // 重新校准也从 ⋮ 菜单里点：关 sheet 后底层菜单仍开着，校准 overlay
+                    // 盖住全屏、挡住触摸，用户关不掉菜单，canCalibrate 永远 false、
+                    // 校准会一直暂停。所以重校准时顺手把菜单也关了。
+                    _uiState.update {
+                        it.copy(
+                            menuState = ReadBookMenuState(),
+                            eyePageRecalibrateNonce = it.eyePageRecalibrateNonce + 1,
+                        )
+                    }
+                } else {
+                    _effects.tryEmit(
+                        ReadBookEffect.ShowToast(context.getString(R.string.eye_page_recalibrate_not_running))
+                    )
+                }
+            }
+            is ReadBookIntent.EyePageCalibrationSaved -> {
+                viewModelScope.launch {
+                    readSettingsRepository.update { it.copy(eyePageCalibration = intent.profile) }
+                }
+            }
+            is ReadBookIntent.EyeGazePointStyleChanged -> {
+                _uiState.update {
+                    it.copy(
+                        eyeGazePointColor = intent.color ?: it.eyeGazePointColor,
+                        eyeGazePointAlpha = intent.alpha ?: it.eyeGazePointAlpha,
+                        eyeGazePointSize = intent.size ?: it.eyeGazePointSize,
+                        eyeGazePointStyleNonce = it.eyeGazePointStyleNonce + 1,
+                    )
+                }
+                viewModelScope.launch {
+                    readSettingsRepository.update {
+                        it.copy(
+                            eyePageGazePointColor = intent.color ?: it.eyePageGazePointColor,
+                            eyePageGazePointAlpha = intent.alpha ?: it.eyePageGazePointAlpha,
+                            eyePageGazePointSize = intent.size ?: it.eyePageGazePointSize,
+                        )
+                    }
+                }
+            }
             is ReadBookIntent.RefreshCurrentChapter -> refreshCurrentChapter()
             is ReadBookIntent.RefreshAllChapters -> refreshAllChapters()
             is ReadBookIntent.RefreshContentAfter -> refreshContentAfter()

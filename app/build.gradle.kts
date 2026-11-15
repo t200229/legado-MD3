@@ -113,6 +113,18 @@ android {
             matchingFallbacks += listOf("release")
             versionNameSuffix = "-noR8"
         }
+        // 共存交付变体：与原版 io.legato.kazusa 同时安装。
+        // 只改后缀，不动 defaultConfig 的 applicationId；仅 arm64-v8a，
+        // 桌面名加 Mochi 后缀以便和原版区分；versionName 不加后缀。
+        create("mochiRelease") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".mochi"
+            manifestPlaceholders["app_name"] = "Legado Mochi"
+            matchingFallbacks += listOf("release")
+            ndk {
+                abiFilters += "arm64-v8a"
+            }
+        }
         getByName("debug") {
             applicationIdSuffix = ".debug"
             if (project.hasProperty("RELEASE_STORE_FILE")) {
@@ -259,6 +271,7 @@ dependencies {
     implementation(project(":modules:book"))
     implementation(project(":modules:rhino"))
     implementation(libs.okhttp)
+    implementation(libs.mediapipe.tasks.vision)
     implementation(fileTree(mapOf("dir" to "cronetlib", "include" to listOf("*.jar", "*.aar"))))
     implementation(libs.protobuf.javalite)
     implementation(libs.glide.glide)

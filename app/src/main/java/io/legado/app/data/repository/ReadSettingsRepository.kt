@@ -498,6 +498,13 @@ class ReadSettingsRepository(
             showMenuIcon = compatDsValue(Keys.ShowMenuIcon, false),
             titleBarCompact = compatDsValue(Keys.TitleBarCompact, false),
             moreActionsConfig = compatDsValue(Keys.MoreActionsConfig, ""),
+            eyePageTurnHelpShown = compatDsValue(Keys.EyePageTurnHelpShown, false),
+            eyePageTurnEnabled = compatDsValue(Keys.EyePageTurnEnabled, false),
+            eyePageCalibration = compatDsValue(Keys.EyePageCalibration, ""),
+            eyePageGazePointEnabled = compatDsValue(Keys.EyePageGazePointEnabled, false),
+            eyePageGazePointColor = compatDsValue(Keys.EyePageGazePointColor, 0xFF9E9E9E.toInt()),
+            eyePageGazePointAlpha = compatDsValue(Keys.EyePageGazePointAlpha, 20),
+            eyePageGazePointSize = compatDsValue(Keys.EyePageGazePointSize, 20),
         )
     }
 
@@ -624,6 +631,13 @@ class ReadSettingsRepository(
         val ShowMenuIcon = booleanPreferencesKey(PreferKey.showMenuIcon)
         val TitleBarCompact = booleanPreferencesKey(PreferKey.titleBarCompact)
         val MoreActionsConfig = stringPreferencesKey(PreferKey.moreActionsConfig)
+        val EyePageTurnHelpShown = booleanPreferencesKey(PreferKey.eyePageTurnHelpShown)
+        val EyePageTurnEnabled = booleanPreferencesKey(PreferKey.eyePageTurnEnabled)
+        val EyePageCalibration = stringPreferencesKey(PreferKey.eyePageCalibration)
+        val EyePageGazePointEnabled = booleanPreferencesKey(PreferKey.eyePageGazePointEnabled)
+        val EyePageGazePointColor = intPreferencesKey(PreferKey.eyePageGazePointColor)
+        val EyePageGazePointAlpha = intPreferencesKey(PreferKey.eyePageGazePointAlpha)
+        val EyePageGazePointSize = intPreferencesKey(PreferKey.eyePageGazePointSize)
     }
 }
 
@@ -756,4 +770,11 @@ internal fun ReadSettings.toGatewayPrefMap(): Map<String, Any?> = mapOf(
     PreferKey.showMenuIcon to showMenuIcon,
     PreferKey.titleBarCompact to titleBarCompact,
     PreferKey.moreActionsConfig to moreActionsConfig,
+    PreferKey.eyePageTurnHelpShown to eyePageTurnHelpShown,
+    PreferKey.eyePageTurnEnabled to eyePageTurnEnabled,
+    PreferKey.eyePageCalibration to eyePageCalibration,
+    PreferKey.eyePageGazePointEnabled to eyePageGazePointEnabled,
+    PreferKey.eyePageGazePointColor to eyePageGazePointColor,
+    PreferKey.eyePageGazePointAlpha to eyePageGazePointAlpha,
+    PreferKey.eyePageGazePointSize to eyePageGazePointSize,
 )

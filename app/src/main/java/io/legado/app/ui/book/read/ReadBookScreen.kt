@@ -31,6 +31,7 @@ import io.legado.app.ui.book.read.sheet.ClickActionConfigSheet
 import io.legado.app.ui.book.read.sheet.ContentEditSheet
 import io.legado.app.ui.book.read.sheet.DownloadSheet
 import io.legado.app.ui.book.read.sheet.BubbleStyleSheet
+import io.legado.app.ui.book.read.sheet.EyeGazePointStyleSheet
 import io.legado.app.ui.book.read.sheet.EyeProtectionConfigSheet
 import io.legado.app.ui.book.read.sheet.FloatingBarIconConfigSheet
 import io.legado.app.ui.book.read.sheet.HighlightRuleConfigSheet
@@ -575,6 +576,16 @@ private fun ReadBookSheetContent(
                 onIntent(ReadBookIntent.HideMenu)
                 onOpenBubbleManage()
             },
+        )
+    }
+    if (state.activeSheet is ReadBookSheet.EyeGazePointStyle) {
+        EyeGazePointStyleSheet(
+            show = visibleState.findSheet<ReadBookSheet.EyeGazePointStyle>() != null,
+            color = state.eyeGazePointColor,
+            alpha = state.eyeGazePointAlpha,
+            size = state.eyeGazePointSize,
+            onDismissRequest = dismissSheet(visibleState.findSheet<ReadBookSheet.EyeGazePointStyle>()),
+            onIntent = onIntent,
         )
     }
     if (state.activeSheet is ReadBookSheet.EyeProtection) {

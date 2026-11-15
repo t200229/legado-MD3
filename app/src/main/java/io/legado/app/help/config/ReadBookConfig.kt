@@ -45,6 +45,17 @@ object ReadBookConfig {
         configStore.initShareConfig()
     }
 
+    // 眼动翻页（自 legadoC 移植）：只读投影，写面走 ReadSettingsGateway。
+    // appCtx 直读偏好会被 verifyConfigArchitecture 拦（旧偏好调用基线为 0），
+    // 且 ReadBookConfig 不允许再长公开可写属性（见 ReadBookConfigDependencyDirectionTest）。
+    val eyePageTurnHelpShown get() = readSettings.eyePageTurnHelpShown
+    val eyePageTurnEnabled get() = readSettings.eyePageTurnEnabled
+    val eyePageCalibration: String? get() = readSettings.eyePageCalibration.takeIf { it.isNotEmpty() }
+    val eyePageGazePointEnabled get() = readSettings.eyePageGazePointEnabled
+    val eyePageGazePointColor get() = readSettings.eyePageGazePointColor
+    val eyePageGazePointAlpha get() = readSettings.eyePageGazePointAlpha
+    val eyePageGazePointSize get() = readSettings.eyePageGazePointSize
+
 
     const val configFileName = "readConfig.json"
     const val shareConfigFileName = "shareReadConfig.json"
