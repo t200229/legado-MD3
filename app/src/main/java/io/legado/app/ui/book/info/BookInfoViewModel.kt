@@ -325,6 +325,66 @@ class BookInfoViewModel(
         )
     }
 
+    /**
+     * rimvoid 式首帧预置：在 setContent 之前就用 Intent 拼一个初始状态，
+     * 让详情页首帧就有内容，不再是空数据白底。
+     * 只写 _screenState，不碰 currentBook——initData 仍会正常跑，
+     * 回来后用真实数据覆盖；预置用的就是 Intent 里那套值（书名/作者/来源/
+     * 封面），与 initData 从 DB 拿到的同一本书是同一批字符串，所以首帧
+     * 与回包后不发生 AnimatedTextLine 换值动画，背景的 800ms Crossfade
+     * 也不触发——首帧即终态，morph 期间画面是静止的真详情页。
+     * 私密：预置值来自用户刚点的那张卡片，卡片上已经显示了它们；私密书
+     * 的锁定态仍由 initData 的 private-first 判定决定，回包后立刻切到
+     * 锁定页。卡片本身对锁定书是脱敏显示的，但 Intent 里传的是真实值，
+     * 所以锁定书在回包前会有一段短暂的真实值可见窗口（morph 内、缩略图
+     * 尚未褪尽时基本被盖住），这是为真无缝付出的代价——不要用它放宽
+     * initData 的 private-first 顺序。
+     * 预置态只在 initData 慢于开门时才可见，看到的是真实封面 + 真实书名/
+     * 作者的详情页骨架，不是白屏；initData 一到就换成完整数据。
+     */
+    fun presetFromIntent(
+        bookUrl: String,
+        name: String? = null,
+        author: String? = null,
+        origin: String? = null,
+        coverPath: String? = null,
+    ) {
+        if (currentBook != null) return
+        _screenState.update { state ->
+            if (state.book != null) state
+            else state.copy(
+                book = BookInfoBookUi(
+                    bookUrl = bookUrl,
+                    name = name.orEmpty(),
+                    author = author.orEmpty(),
+                    realAuthor = author.orEmpty(),
+                    origin = origin ?: BookType.localTag,
+                    originName = "",
+                    coverPath = coverPath,
+                    group = 0L,
+                    isLocal = false,
+                    type = BookType.notShelf,
+                    canUpdate = false,
+                    disableReadRecord = false,
+                    splitLongChapter = false,
+                    durChapterTitle = null,
+                    latestChapterTitle = null,
+                    totalChapterNum = 0,
+                    durChapterIndex = 0,
+                    durChapterPos = 0,
+                    remark = null,
+                    intro = null,
+                )
+            )
+        }
+    }
+
+    /** 已发起过 initData 的 bookUrl：RouteScreen 的 LaunchedEffect 会在首帧
+     * 再调一次 initData，而首帧比 IO 回包早到（门撤掉后一定会撞上），两次
+     * execute 会并发跑同一套查询——私密书会弹两次验证。同一 bookUrl 只跑一次；
+     * 换 bookUrl 时 currentBook 非空已由下行挡住，走新页面是新的 ViewModel。 */
+    private var initStartedForUrl: String? = null
+
     fun initData(
         bookUrl: String,
         name: String? = null,
@@ -334,6 +394,8 @@ class BookInfoViewModel(
     ) {
         val current = currentBook
         if (current != null) return
+        if (initStartedForUrl == bookUrl) return
+        initStartedForUrl = bookUrl
         clearReadRecordObserve()
         relatedBooksLoadJob?.cancel()
         characterLoadJob?.cancel()

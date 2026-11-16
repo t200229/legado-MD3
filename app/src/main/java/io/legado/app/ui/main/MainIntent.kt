@@ -22,12 +22,16 @@ object MainIntent {
     const val EXTRA_READ_ALOUD = "readAloud"
     const val EXTRA_IN_BOOKSHELF = "inBookshelf"
     const val EXTRA_CHAPTER_CHANGED = "chapterChanged"
+    /** 从独立详情页（BookInfoActivity）进阅读页时带上：阅读页按返回回到详情页而不是主页。 */
+    const val EXTRA_FROM_BOOK_INFO = "fromBookInfo"
     const val EXTRA_EXPLORE_NAME = "exploreName"
     const val EXTRA_SOURCE_URL = "sourceUrl"
     const val EXTRA_BOOK_SOURCE_IMPORT = "bookSourceImport"
     const val EXTRA_SOURCE_LOGIN_TYPE = "source_login_type"
     const val EXTRA_SOURCE_LOGIN_KEY = "source_login_key"
     const val EXTRA_EXPLORE_URL = "exploreUrl"
+    const val EXTRA_EXPLORE_USE_PAGE_PARAM_FALLBACK = "extra_explore_use_page_param_fallback"
+    const val EXTRA_TOC_INITIAL_PAGE = "extra_toc_initial_page"
     const val EXTRA_WEB_VIEW_TITLE = "title"
     const val EXTRA_WEB_VIEW_URL = "url"
     const val EXTRA_WEB_VIEW_SOURCE_ORIGIN = "sourceOrigin"
@@ -222,6 +226,12 @@ object MainIntent {
         readAloud: Boolean = false,
         inBookshelf: Boolean = true,
         chapterChanged: Boolean = false,
+        /** 从独立详情页来时为 true，并带上书名等参数，供阅读页返回时重建详情页。 */
+        fromBookInfo: Boolean = false,
+        bookName: String? = null,
+        bookAuthor: String? = null,
+        bookOrigin: String? = null,
+        bookCoverPath: String? = null,
     ): Intent {
         return createLauncherIntent(context).apply {
             putExtra(EXTRA_START_ROUTE, MainRouteConst.ROUTE_READ_BOOK)
@@ -229,6 +239,13 @@ object MainIntent {
             putExtra(EXTRA_READ_ALOUD, readAloud)
             putExtra(EXTRA_IN_BOOKSHELF, inBookshelf)
             putExtra(EXTRA_CHAPTER_CHANGED, chapterChanged)
+            if (fromBookInfo) {
+                putExtra(EXTRA_FROM_BOOK_INFO, true)
+                bookName?.let { putExtra(EXTRA_BOOK_NAME, it) }
+                bookAuthor?.let { putExtra(EXTRA_BOOK_AUTHOR, it) }
+                bookOrigin?.let { putExtra(EXTRA_BOOK_ORIGIN, it) }
+                bookCoverPath?.let { putExtra(EXTRA_BOOK_COVER, it) }
+            }
         }
     }
 
@@ -253,12 +270,25 @@ object MainIntent {
         bookUrl: String? = null,
         inBookshelf: Boolean = true,
         chapterChanged: Boolean = false,
+        /** 从独立详情页来时为 true，并带上书名等参数，供漫画页返回时重建详情页。 */
+        fromBookInfo: Boolean = false,
+        bookName: String? = null,
+        bookAuthor: String? = null,
+        bookOrigin: String? = null,
+        bookCoverPath: String? = null,
     ): Intent = createLauncherIntent(context).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         putExtra(EXTRA_START_ROUTE, MainRouteConst.ROUTE_READ_MANGA)
         bookUrl?.let { putExtra(EXTRA_BOOK_URL, it) }
         putExtra(EXTRA_IN_BOOKSHELF, inBookshelf)
         putExtra(EXTRA_CHAPTER_CHANGED, chapterChanged)
+        if (fromBookInfo) {
+            putExtra(EXTRA_FROM_BOOK_INFO, true)
+            bookName?.let { putExtra(EXTRA_BOOK_NAME, it) }
+            bookAuthor?.let { putExtra(EXTRA_BOOK_AUTHOR, it) }
+            bookOrigin?.let { putExtra(EXTRA_BOOK_ORIGIN, it) }
+            bookCoverPath?.let { putExtra(EXTRA_BOOK_COVER, it) }
+        }
     }
 
     fun createAudioPlayIntent(
@@ -312,6 +342,37 @@ object MainIntent {
             putExtra(EXTRA_BOOK_URL, bookUrl)
             putExtra(EXTRA_BOOK_ORIGIN, origin)
             putExtra(EXTRA_BOOK_COVER, coverPath)
+        }
+    }
+
+    /** 独立详情页打开目录：目录在 MainActivity 的 Nav3 里，选章后没有详情页可回传，见 TocViewModel。 */
+    fun createTocIntent(
+        context: Context,
+        bookUrl: String,
+        initialPage: Int = 0,
+    ): Intent {
+        return createLauncherIntent(context).apply {
+            putExtra(EXTRA_START_ROUTE, MainRouteConst.ROUTE_TOC)
+            putExtra(EXTRA_BOOK_URL, bookUrl)
+            putExtra(EXTRA_TOC_INITIAL_PAGE, initialPage)
+        }
+    }
+
+    /** 独立详情页打开书籍信息编辑页。 */
+    fun createBookInfoEditIntent(
+        context: Context,
+        bookUrl: String,
+    ): Intent {
+        return createLauncherIntent(context).apply {
+            putExtra(EXTRA_START_ROUTE, MainRouteConst.ROUTE_BOOK_INFO_EDIT)
+            putExtra(EXTRA_BOOK_URL, bookUrl)
+        }
+    }
+
+    /** 独立详情页打开私密设置页（私密内容需要本地密码、未设置时引导过去）。 */
+    fun createSettingsPrivateIntent(context: Context): Intent {
+        return createLauncherIntent(context).apply {
+            putExtra(EXTRA_START_ROUTE, MainRouteConst.ROUTE_SETTINGS_PRIVATE)
         }
     }
 
@@ -396,12 +457,14 @@ object MainIntent {
         exploreName: String? = null,
         sourceUrl: String,
         exploreUrl: String? = null,
+        usePageParamFallback: Boolean = false,
     ): Intent {
         return createLauncherIntent(context).apply {
             putExtra(EXTRA_START_ROUTE, MainRouteConst.ROUTE_EXPLORE_SHOW)
             putExtra(EXTRA_EXPLORE_NAME, exploreName)
             putExtra(EXTRA_SOURCE_URL, sourceUrl)
             putExtra(EXTRA_EXPLORE_URL, exploreUrl)
+            putExtra(EXTRA_EXPLORE_USE_PAGE_PARAM_FALLBACK, usePageParamFallback)
         }
     }
 

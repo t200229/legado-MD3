@@ -180,6 +180,9 @@ fun ReaderBookSheetRoute(
             when (effect) {
                 is TocEffect.ShowMessage ->
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                // 阅读页里的目录选章走 closeBookPage 回传（父页就是阅读页），不会发 OpenReader；
+                // 这里只是让 when 穷尽。
+                is TocEffect.OpenReader -> Unit
             }
         }
     }

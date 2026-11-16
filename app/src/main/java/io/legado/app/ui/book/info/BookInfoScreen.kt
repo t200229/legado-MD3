@@ -198,6 +198,8 @@ fun BookInfoScreen(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     sharedCoverKey: String? = null,
+    /** 一镜到底进场时只把简介留到 morph 跑完再画；Nav3 路由默认 false */
+    deferIntro: Boolean = false,
 ) {
     val waitForSharedTransition = sharedCoverKey != null && animatedVisibilityScope != null
     val transition = animatedVisibilityScope?.transition
@@ -258,6 +260,7 @@ fun BookInfoScreen(
             sharedCoverKey = sharedCoverKey,
             backdropStyle = backdropStyle,
             usesDefaultCover = usesDefaultCover,
+            deferIntro = deferIntro,
             onOpenExplore = onOpenExplore,
             onNetworkCoverLoadError = { failedCoverPath ->
                 if (failedCoverPath == state.book?.coverPath) {
@@ -305,6 +308,7 @@ private fun BookInfoScreenContent(
     usesDefaultCover: Boolean,
     onNetworkCoverLoadError: (String?) -> Unit,
     onOpenExplore: (title: String, url: String) -> Unit,
+    deferIntro: Boolean = false,
 ) {
     val isMiuix = LegadoTheme.composeEngine == ComposeEngine.Miuix
     val scrollBehavior = if (isMiuix) {
@@ -480,6 +484,7 @@ private fun BookInfoScreenContent(
                                         BookInfoSummary(
                                             book = book,
                                             tocLoadFailed = state.tocLoadFailed,
+                                            deferIntro = deferIntro,
                                             onRemarkClick = { onIntent(BookInfoIntent.RemarkClick) },
                                             bookSource = state.bookSource,
                                             onJumpToAnotherApp = jumpToAnotherApp,
@@ -1611,7 +1616,9 @@ private fun BookInfoActionCard(
     GlassCard(
         modifier = modifier.semantics(mergeDescendants = true) {
             role = Role.Button
-            this.contentDescription = contentDescription
+            // 描述与可见文案一致时交给文本节点朗读，避免同一名称念两遍；
+            // 仅冲突提示等补充信息才覆盖。
+            if (contentDescription != label) this.contentDescription = contentDescription
         },
         onLongClick = onLongClick,
         onClick = onClick,
@@ -1639,6 +1646,7 @@ private fun BookInfoActionCard(
 private fun BookInfoSummary(
     book: BookInfoBookUi,
     tocLoadFailed: Boolean,
+    deferIntro: Boolean = false,
     onRemarkClick: () -> Unit,
     bookSource: BookSource?,
     onJumpToAnotherApp: (Uri) -> Unit,
@@ -1715,17 +1723,22 @@ private fun BookInfoSummary(
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
-        BookInfoIntro(
-            intro = book.intro,
-            baseUrl = book.bookUrl
-                .takeIf { it.startsWith("http", true) }
-                ?.substringBefore(","),
-            bookSource = bookSource,
-            onJumpToAnotherApp = onJumpToAnotherApp,
-            onButtonClick = onIntroButtonClick,
-            onImageClick = onIntroImageClick,
-            onImageLongClick = onIntroImageLongClick,
-        )
+        // 一镜到底进场时简介留到 morph 跑完再画：多行正文在窗口形变时量字
+        // 会有一帧文字重叠；窗口定型后再画就一次到位。defer 期间这块留空，
+        // 其余内容（封面/书名/章节信息）首帧已画好，不受影响。
+        if (!deferIntro) {
+            BookInfoIntro(
+                intro = book.intro,
+                baseUrl = book.bookUrl
+                    .takeIf { it.startsWith("http", true) }
+                    ?.substringBefore(","),
+                bookSource = bookSource,
+                onJumpToAnotherApp = onJumpToAnotherApp,
+                onButtonClick = onIntroButtonClick,
+                onImageClick = onIntroImageClick,
+                onImageLongClick = onIntroImageLongClick,
+            )
+        }
     }
 }
 

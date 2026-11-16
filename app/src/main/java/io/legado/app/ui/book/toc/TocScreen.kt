@@ -192,6 +192,11 @@ fun TocRouteScreen(
      * `ConsumeBookPageResult` 回灌 `TocIntent.SaveTocRegex`。
      */
     onPickLocalTocRule: (String?) -> Unit,
+    /**
+     * 独立详情页打开目录时选章后开阅读页（没有详情页可回传结果时用）。
+     * Nav3 里目录的父页是详情 / 阅读页时不走这里，走 closeBookPage 回传。
+     */
+    onOpenReader: (String) -> Unit = {},
 ) {
     val state by viewModel.screenState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -209,6 +214,7 @@ fun TocRouteScreen(
             when (effect) {
                 is TocEffect.ShowMessage ->
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                is TocEffect.OpenReader -> onOpenReader(effect.bookUrl)
             }
         }
     }

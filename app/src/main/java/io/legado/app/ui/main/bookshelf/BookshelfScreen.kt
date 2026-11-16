@@ -92,11 +92,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -111,6 +113,7 @@ import io.legado.app.data.entities.BookGroup
 import io.legado.app.domain.model.PrivateUnlockTarget
 import io.legado.app.help.security.BiometricUnlockLauncher
 import io.legado.app.ui.book.group.GroupEditSheet
+import io.legado.app.ui.book.info.BookInfoOneTakeAnchors
 import io.legado.app.ui.book.info.GroupSelectSheet
 import io.legado.app.ui.main.bookCoverSharedElementKey
 import io.legado.app.ui.theme.ComposeEngine
@@ -1758,6 +1761,8 @@ fun BookshelfPage(
                     bookUi.book.bookUrl,
                     bookshelfSharedCoverSourceId(sharedCoverGroupId)
                 )
+                // 一镜到底的起飞点：卡片在屏幕上的矩形，长按进详情时按 bookUrl 取。
+                val anchorView = LocalView.current
                 ReorderableItem(
                     state = reorderableState,
                     key = bookUi.book.bookUrl,
@@ -1805,6 +1810,11 @@ fun BookshelfPage(
                             )
                             .graphicsLayer {
                                 alpha = if (isDragging) 0.5f else 1f
+                            }
+                            .onGloballyPositioned { coords ->
+                                BookInfoOneTakeAnchors.record(
+                                    anchorView, coords, bookUi.book.bookUrl
+                                )
                             },
                         layoutMode = bookshelfLayoutMode,
                         isSelected = isSelected,

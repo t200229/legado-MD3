@@ -185,10 +185,16 @@ sealed interface TocIntent {
     data object ExpandAllVolumes : TocIntent
     data object CollapseAllVolumes : TocIntent
     data object UpdateToc : TocIntent
+    /**
+     * 独立详情页打开目录时选章：没有详情页可回传结果，写进度后直接开阅读页。
+     * （Nav3 里目录的父页是详情 / 阅读页时走 closeBookPage 回传，不走这里。）
+     */
+    data class SelectChapterForReader(val index: Int, val position: Int) : TocIntent
 }
 
 sealed interface TocEffect {
     data class ShowMessage(val message: String) : TocEffect
+    data class OpenReader(val bookUrl: String) : TocEffect
 }
 
 data class TocDomainItem(
@@ -791,6 +797,27 @@ class TocViewModel(
             TocIntent.ExpandAllVolumes -> expandAllVolumes()
             TocIntent.CollapseAllVolumes -> collapseAllVolumes()
             TocIntent.UpdateToc -> updateToc()
+            is TocIntent.SelectChapterForReader -> selectChapterForReader(intent.index, intent.position)
+        }
+    }
+
+    /**
+     * 独立详情页打开目录时选章：没有详情页可回传结果，写进度后直接开阅读页。
+     */
+    private fun selectChapterForReader(index: Int, position: Int) {
+        viewModelScope.launch {
+            val book = bookState.value
+                ?: bookUrlFlow.value?.let { runCatching { bookRepository.getBook(it) }.getOrNull() }
+            if (book == null) return@launch
+            runCatching {
+                book.durChapterIndex = index
+                book.durChapterPos = position
+                bookRepository.update(book)
+            }.onSuccess {
+                _effects.tryEmit(TocEffect.OpenReader(book.bookUrl))
+            }.onFailure {
+                _effects.tryEmit(TocEffect.ShowMessage(it.localizedMessage ?: "Error"))
+            }
         }
     }
 

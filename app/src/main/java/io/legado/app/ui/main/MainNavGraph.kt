@@ -70,6 +70,8 @@ import io.legado.app.ui.book.explore.ExploreShowRouteScreen
 import io.legado.app.ui.book.explore.ExploreShowViewModel
 import io.legado.app.ui.book.import.local.ImportBookRouteScreen
 import io.legado.app.ui.book.import.remote.RemoteBookRouteScreen
+import io.legado.app.ui.book.info.BookInfoOneTake
+import io.legado.app.ui.book.info.BookInfoOneTakeAnchors
 import io.legado.app.ui.book.info.BookInfoRouteScreen
 import io.legado.app.ui.book.info.BookInfoViewModel
 import io.legado.app.ui.book.info.edit.BookInfoEditScreen
@@ -321,16 +323,39 @@ fun MainActivity.mainEntryProvider(
                 else -> Unit
             }
         }
+        // 目录选章的回传目标：父页是详情 / 阅读页时把选择回传给它；独立详情页
+        // 打开的目录没有可回传的父页（栈底是主页），选章后写进度直接开阅读页。
+        val canReportToParent: () -> Boolean = {
+            when (backStack.getOrNull(backStack.lastIndex - 1)) {
+                is MainRouteBookInfo, is MainRouteReadBook, is MainRouteReadManga -> true
+                else -> false
+            }
+        }
         TocRouteScreen(
             viewModel = tocViewModel,
             bookUrl = route.bookUrl,
             initialPage = route.initialPage,
             onBackClick = { closeBookPage(backStack, route) },
             onChapterClick = { index ->
-                closeBookPage(backStack, route, BookPageResult.ChapterSelected(index, 0))
+                if (canReportToParent()) {
+                    closeBookPage(backStack, route, BookPageResult.ChapterSelected(index, 0))
+                } else {
+                    tocViewModel.onIntent(TocIntent.SelectChapterForReader(index, 0))
+                }
             },
             onBookmarkClick = { index, position ->
-                closeBookPage(backStack, route, BookPageResult.ChapterSelected(index, position))
+                if (canReportToParent()) {
+                    closeBookPage(backStack, route, BookPageResult.ChapterSelected(index, position))
+                } else {
+                    tocViewModel.onIntent(TocIntent.SelectChapterForReader(index, position))
+                }
+            },
+            onOpenReader = { bookUrl ->
+                // 目录已完成使命：先弹出目录，再开阅读页，返回时直接回主页而不是回目录
+                closeBookPage(backStack, route)
+                onNavigateToRoute(
+                    MainRouteReadBook(bookUrl = bookUrl, chapterChanged = true)
+                )
             },
             onOpenReplaceRule = { editor ->
                 onNavigateToRoute(editor?.let { MainRouteReplaceEdit(it) } ?: MainRouteReplaceRules(
@@ -355,11 +380,19 @@ fun MainActivity.mainEntryProvider(
             onBack = { closeBookPage(backStack, route) },
             onSave = {
                 viewModel.save {
-                    closeBookPage(
-                        backStack,
-                        route,
-                        BookPageResult.InfoEdited
-                    )
+                    if (backStack.size == 1) {
+                        // 独立详情页打开的编辑页（栈里只有编辑页）：保存后回传 RESULT_OK
+                        // 并结束本 Activity，BookInfoActivity 收到后刷新详情并留在详情页。
+                        // 正常 Nav3 里有详情父页，closeBookPage 会把 InfoEdited 回传给它。
+                        this@mainEntryProvider.setResult(android.app.Activity.RESULT_OK)
+                        this@mainEntryProvider.finish()
+                    } else {
+                        closeBookPage(
+                            backStack,
+                            route,
+                            BookPageResult.InfoEdited
+                        )
+                    }
                 }
             },
             onOpenCharacterList = { onNavigateToRoute(MainRouteBookCharacterList(it)) },
@@ -598,16 +631,31 @@ fun MainActivity.mainEntryProvider(
                 onNavigateToRoute(MainRouteSettingsBackup)
             },
             onNavigateToBookInfo = { name, author, bookUrl, origin, coverPath, sharedCoverKey ->
-                onNavigateToRoute(
-                    MainRouteBookInfo(
+                val route = MainRouteBookInfo(
+                    name = name,
+                    author = author,
+                    bookUrl = bookUrl,
+                    origin = origin,
+                    coverPath = coverPath,
+                    sharedCoverKey = sharedCoverKey
+                )
+                // 书架 / 发现页卡片登记了封面屏幕矩形时走一镜到底（独立详情 Activity）；
+                // 没登记（首页信息流等入口）或动画拿不到条件时回退原 Nav3 路由。
+                val anchor = BookInfoOneTakeAnchors.get(bookUrl)
+                if (anchor == null) {
+                    onNavigateToRoute(route)
+                } else {
+                    BookInfoOneTake.openBookInfo(
+                        context = this@mainEntryProvider,
                         name = name,
                         author = author,
                         bookUrl = bookUrl,
                         origin = origin,
                         coverPath = coverPath,
-                        sharedCoverKey = sharedCoverKey
+                        anchor = anchor,
+                        fallback = { onNavigateToRoute(route) },
                     )
-                )
+                }
             },
             onNavigateToExploreShow = { title, sourceUrl, exploreUrl ->
                 onNavigateToRoute(
@@ -1082,12 +1130,14 @@ fun MainActivity.mainEntryProvider(
                     onNavigateToRoute(MainRouteSettingsBubble)
                 },
                 onNavigateBack = {
-                    MainNavigator.navigateBack(
-                        this@mainEntryProvider,
-                        backStack,
-                        navRouteTracker,
-                        fromRoute = route,
-                    )
+                    // 注意：这里调的是 entryProvider 的 onNavigateBack
+                    //（MainActivity 里先走 handleReaderBackToBookInfo），
+                    // 不要直接调 MainNavigator.navigateBack。
+                    // 上一轮就是直接 navigateBack，绕过了“阅读页返回回详情页”的拦截，
+                    // 所以真机上按返回还是回主页，拦截点根本没走到。
+                    // 这里的 onNavigateBack 指外层的 provider 参数（不是这个 lambda 自己）。
+                    onNavigateBack()
+                    true
                 },
             )
 
@@ -1191,12 +1241,10 @@ fun MainActivity.mainEntryProvider(
                 sharedCoverKey = route.sharedCoverKey,
                 isTopRoute = backStack.lastOrNull() == route,
                 onFinish = {
-                    MainNavigator.navigateBack(
-                        this@mainEntryProvider,
-                        backStack,
-                        navRouteTracker,
-                        fromRoute = route,
-                    )
+                    // 同阅读页：走宿主的 onNavigateBack（先试回详情页），
+                    // 不要直接 navigateBack，否则从详情页进漫画、按返回还是回主页。
+                    onNavigateBack()
+                    true
                 },
                 onOpenBookInfo = { name, author, bookUrl ->
                     onNavigateToRoute(
@@ -1852,16 +1900,31 @@ fun MainActivity.mainEntryProvider(
             title = route.title ?: "探索",
             onBack = { onNavigateBack() },
             onBookClick = { book, sharedCoverKey ->
-                onNavigateToRoute(
-                    MainRouteBookInfo(
+                val route = MainRouteBookInfo(
+                    name = book.name,
+                    author = book.author,
+                    bookUrl = book.bookUrl,
+                    origin = book.origin,
+                    coverPath = book.coverUrl,
+                    sharedCoverKey = sharedCoverKey
+                )
+                // 发现页卡片登记了封面屏幕矩形时走一镜到底（独立详情 Activity）；
+                // 没登记或动画拿不到条件时回退原 Nav3 路由。
+                val anchor = BookInfoOneTakeAnchors.get(book.bookUrl)
+                if (anchor == null) {
+                    onNavigateToRoute(route)
+                } else {
+                    BookInfoOneTake.openBookInfo(
+                        context = this@mainEntryProvider,
                         name = book.name,
                         author = book.author,
                         bookUrl = book.bookUrl,
                         origin = book.origin,
                         coverPath = book.coverUrl,
-                        sharedCoverKey = sharedCoverKey
+                        anchor = anchor,
+                        fallback = { onNavigateToRoute(route) },
                     )
-                )
+                }
             },
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = LocalNavAnimatedContentScope.current,

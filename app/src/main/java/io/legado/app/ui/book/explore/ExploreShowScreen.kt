@@ -38,12 +38,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.legado.app.R
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.domain.model.BookShelfState
+import io.legado.app.ui.book.info.BookInfoOneTakeAnchors
 import io.legado.app.ui.main.bookCoverSharedElementKey
 import io.legado.app.ui.theme.LocalBottomOverlayPadding
 import io.legado.app.ui.widget.components.AppPullToRefresh
@@ -154,6 +157,8 @@ fun ExploreShowScreen(
     var previewSharedCoverKey by remember { mutableStateOf<String?>(null) }
     var showJumpPageDialog by remember { mutableStateOf(false) }
     var jumpPageInput by remember { mutableStateOf("") }
+    // 一镜到底的起飞点：卡片在屏幕上的矩形，点开详情时按 bookUrl 取。
+    val anchorView = LocalView.current
 
     val filterStateId = state.filterStateId
     val books = remember(state.books, filterStateId) {
@@ -327,7 +332,12 @@ fun ExploreShowScreen(
                                     previewBook = book
                                     previewSharedCoverKey = coverKey
                                 },
-                                modifier = Modifier.animateItem(),
+                                modifier = Modifier.animateItem()
+                                    .onGloballyPositioned { coords ->
+                                        BookInfoOneTakeAnchors.record(
+                                            anchorView, coords, item.book.bookUrl
+                                        )
+                                    },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedCoverKey = sharedCoverKey,
@@ -377,7 +387,12 @@ fun ExploreShowScreen(
                                     previewBook = book
                                     previewSharedCoverKey = coverKey
                                 },
-                                modifier = Modifier.animateItem(),
+                                modifier = Modifier.animateItem()
+                                    .onGloballyPositioned { coords ->
+                                        BookInfoOneTakeAnchors.record(
+                                            anchorView, coords, item.book.bookUrl
+                                        )
+                                    },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedCoverKey = sharedCoverKey,
