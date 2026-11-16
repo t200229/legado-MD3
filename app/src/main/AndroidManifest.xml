@@ -224,6 +224,13 @@
                 android:name="com.samsung.android.support.REMOTE_ACTION"
                 android:resource="@xml/spen_remote_actions" />
         </activity>
+        <!-- 书详情（独立 Activity，一镜到底启动动画的落点；只从应用内启动） -->
+        <activity
+            android:name=".ui.book.info.BookInfoActivity"
+            android:configChanges="locale|layoutDirection|uiMode|orientation|screenSize|smallestScreenSize|screenLayout"
+            android:enableOnBackInvokedCallback="true"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.welcome.WelcomeActivity"
             android:configChanges="locale|layoutDirection|uiMode|screenLayout"
