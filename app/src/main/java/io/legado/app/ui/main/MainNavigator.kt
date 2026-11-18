@@ -651,21 +651,6 @@ object MainNavigator {
                     )
                 } ?: MainRouteHome
 
-            MainRouteConst.ROUTE_BOOK_INFO_EDIT -> intent?.getStringExtra(MainIntent.EXTRA_BOOK_URL)
-                ?.takeIf { it.isNotBlank() }
-                ?.let { bookUrl ->
-                    MainRouteBookInfoEdit(bookUrl = bookUrl)
-                } ?: MainRouteHome
-
-            MainRouteConst.ROUTE_TOC -> intent?.getStringExtra(MainIntent.EXTRA_BOOK_URL)
-                ?.takeIf { it.isNotBlank() }
-                ?.let { bookUrl ->
-                    MainRouteToc(
-                        bookUrl = bookUrl,
-                        initialPage = intent.getIntExtra(MainIntent.EXTRA_TOC_INITIAL_PAGE, 0),
-                    )
-                } ?: MainRouteHome
-
             MainRouteConst.ROUTE_BOOK_CHARACTER_DETAIL -> intent?.getStringExtra(MainIntent.EXTRA_BOOK_URL)
                 ?.takeIf { it.isNotBlank() }
                 ?.let { bookUrl ->
@@ -724,9 +709,6 @@ object MainNavigator {
                         title = intent.getStringExtra(MainIntent.EXTRA_EXPLORE_NAME),
                         sourceUrl = sourceUrl,
                         exploreUrl = intent.getStringExtra(MainIntent.EXTRA_EXPLORE_URL),
-                        usePageParamFallback = intent.getBooleanExtra(
-                            MainIntent.EXTRA_EXPLORE_USE_PAGE_PARAM_FALLBACK, false
-                        ),
                     )
                 } ?: MainRouteHome
 

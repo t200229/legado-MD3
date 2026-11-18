@@ -95,7 +95,6 @@ import io.legado.app.ui.widget.components.modalBottomSheet.MarkdownSheet
 import io.legado.app.ui.about.UpdateDialog
 import io.legado.app.ui.book.audio.AudioPlayViewModel
 import io.legado.app.ui.book.video.enterVideoPip
-import io.legado.app.ui.book.info.BookInfoActivity
 import io.legado.app.ui.book.read.ReadAloudControlsRequestBus
 import io.legado.app.ui.book.read.ReadBookInputHandler
 import io.legado.app.ui.book.read.ReadBookRouteHost
@@ -266,22 +265,12 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
             readAloud: Boolean = false,
             inBookshelf: Boolean = true,
             chapterChanged: Boolean = false,
-            fromBookInfo: Boolean = false,
-            bookName: String? = null,
-            bookAuthor: String? = null,
-            bookOrigin: String? = null,
-            bookCoverPath: String? = null,
         ): Intent = MainIntent.createReadBookIntent(
             context = context,
             bookUrl = bookUrl,
             readAloud = readAloud,
             inBookshelf = inBookshelf,
             chapterChanged = chapterChanged,
-            fromBookInfo = fromBookInfo,
-            bookName = bookName,
-            bookAuthor = bookAuthor,
-            bookOrigin = bookOrigin,
-            bookCoverPath = bookCoverPath,
         )
 
         fun createReadBookMediaControlIntent(context: Context): Intent =
@@ -292,21 +281,11 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
             bookUrl: String? = null,
             inBookshelf: Boolean = true,
             chapterChanged: Boolean = false,
-            fromBookInfo: Boolean = false,
-            bookName: String? = null,
-            bookAuthor: String? = null,
-            bookOrigin: String? = null,
-            bookCoverPath: String? = null,
         ): Intent = MainIntent.createReadMangaIntent(
             context = context,
             bookUrl = bookUrl,
             inBookshelf = inBookshelf,
             chapterChanged = chapterChanged,
-            fromBookInfo = fromBookInfo,
-            bookName = bookName,
-            bookAuthor = bookAuthor,
-            bookOrigin = bookOrigin,
-            bookCoverPath = bookCoverPath,
         )
 
         fun createAudioPlayIntent(
@@ -388,24 +367,7 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
             exploreName: String? = null,
             sourceUrl: String,
             exploreUrl: String? = null,
-            usePageParamFallback: Boolean = false,
-        ): Intent = MainIntent.createExploreShowIntent(
-            context, exploreName, sourceUrl, exploreUrl, usePageParamFallback
-        )
-
-        fun createTocIntent(
-            context: Context,
-            bookUrl: String,
-            initialPage: Int = 0,
-        ): Intent = MainIntent.createTocIntent(context, bookUrl, initialPage)
-
-        fun createBookInfoEditIntent(
-            context: Context,
-            bookUrl: String,
-        ): Intent = MainIntent.createBookInfoEditIntent(context, bookUrl)
-
-        fun createSettingsPrivateIntent(context: Context): Intent =
-            MainIntent.createSettingsPrivateIntent(context)
+        ): Intent = MainIntent.createExploreShowIntent(context, exploreName, sourceUrl, exploreUrl)
     }
 
     private val viewModel by viewModel<MainViewModel>()
@@ -417,63 +379,6 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
     internal val navRouteTracker by inject<MainNavRouteTracker>()
     internal val bookRepository by inject<BookRepository>()
     private val routeEvents = MutableSharedFlow<RouteEvent>(extraBufferCapacity = 1)
-
-    /**
-     * 从独立详情页（BookInfoActivity）进阅读页时记下的回落点：阅读页按返回时
-     * 回到详情页而不是主页。只在栈顶是同一本书的阅读页时生效，用完即清；
-     * 其他入口进阅读页时不设置，返回行为保持原样。
-     */
-    private var bookInfoReturnTarget: BookInfoReturnTarget? = null
-
-    private data class BookInfoReturnTarget(
-        val name: String?,
-        val author: String?,
-        val bookUrl: String,
-        val origin: String?,
-        val coverPath: String?,
-    )
-
-    /** 收到带 fromBookInfo 标记的阅读页 Intent 时记下回落点。 */
-    private fun recordBookInfoReturn(intent: Intent?) {
-        if (intent?.getBooleanExtra(MainIntent.EXTRA_FROM_BOOK_INFO, false) != true) return
-        val route = MainNavigator.resolveStartRoute(intent)
-        if (route !is MainRouteReadBook && route !is MainRouteReadManga) return
-        val bookUrl = intent.getStringExtra(MainIntent.EXTRA_BOOK_URL).orEmpty()
-        if (bookUrl.isBlank()) return
-        bookInfoReturnTarget = BookInfoReturnTarget(
-            name = intent.getStringExtra(MainIntent.EXTRA_BOOK_NAME),
-            author = intent.getStringExtra(MainIntent.EXTRA_BOOK_AUTHOR),
-            bookUrl = bookUrl,
-            origin = intent.getStringExtra(MainIntent.EXTRA_BOOK_ORIGIN),
-            coverPath = intent.getStringExtra(MainIntent.EXTRA_BOOK_COVER),
-        )
-    }
-
-    /**
-     * 阅读页按返回时回到详情页（而不是主页）。
-     * 返回 true 表示已处理：先启动详情页盖在上面，再把阅读页从 Nav3 栈里弹出（落到主页），
-     * 这样详情页按返回时露出的是主页，不会回到阅读页。返回 false 表示走正常返回。
-     * 注意：这里重建一个详情 Activity（普通启动，无一镜到底起飞动画），
-     * 不是把之前那个复活——之前那个打开阅读页时已经 finish 了。
-     */
-    private fun handleReaderBackToBookInfo(backStack: MutableList<NavKey>): Boolean {
-        val target = bookInfoReturnTarget ?: return false
-        val topBookUrl = when (val top = backStack.lastOrNull()) {
-            is MainRouteReadBook -> top.bookUrl
-            is MainRouteReadManga -> top.bookUrl
-            else -> return false
-        }
-        if (topBookUrl != target.bookUrl) return false
-        bookInfoReturnTarget = null
-        startActivity(
-            BookInfoActivity.createIntent(
-                this, target.name, target.author, target.bookUrl, target.origin, target.coverPath
-            )
-        )
-        backStack.removeLastOrNull()
-        navRouteTracker.onBackStackChanged(backStack)
-        return true
-    }
     /**
      * Web 服务与「局域网请求」各自持有独立的 launcher：授权结果互不影响，也不需要用一个可变字段
      * 记录「本次申请的目的」——那种写法在配置变更/进程重建后会丢失，导致结果被误判为 Web 服务申请。
@@ -535,7 +440,6 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
         restoredReadBookRoute = savedInstanceState?.restoreReadBookRoute()
             ?: navRouteTracker.lastReadBookRoute()
         super.onCreate(savedInstanceState)
-        recordBookInfoReturn(intent)
 
         if (checkStartupRoute()) return
         val shouldAutoCheckUpdate = startupUpdateCheckGate.consume(
@@ -621,7 +525,6 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        recordBookInfoReturn(intent)
         if (intent.getBooleanExtra(MainIntent.EXTRA_OPEN_READ_ALOUD_PLAYER, false)) {
             ReadAloudPlayerOverlayBus.request()
             return
@@ -1065,11 +968,7 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
                                     animationSpec = tween(easing = FastOutSlowInEasing)
                                 ) + fadeOut(animationSpec = tween())))
                             },
-                            onBack = {
-                                if (!handleReaderBackToBookInfo(backStack)) {
-                                    MainNavigator.navigateBack(this@MainActivity, backStack)
-                                }
-                            },
+                            onBack = { MainNavigator.navigateBack(this@MainActivity, backStack) },
                             entryProvider = mainEntryProvider(
                                 backStack = backStack,
                                 configuration = configuration,
@@ -1098,13 +997,11 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
                                     }
                                 },
                                 onNavigateBack = {
-                                    if (!handleReaderBackToBookInfo(backStack)) {
-                                        MainNavigator.navigateBack(
-                                            this@MainActivity,
-                                            backStack,
-                                            navRouteTracker
-                                        )
-                                    }
+                                    MainNavigator.navigateBack(
+                                        this@MainActivity,
+                                        backStack,
+                                        navRouteTracker
+                                    )
                                 },
                                 readAloudMorph = readAloudMorph.takeIf { useHomeCapsule },
                                 homePlaybackCapsuleEnabled = useHomeCapsule,
@@ -1212,9 +1109,7 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
                         playerPresent = playerVisible || morphPresent,
                     )
                 ) {
-                    if (!handleReaderBackToBookInfo(backStack)) {
-                        MainNavigator.navigateBack(this@MainActivity, backStack)
-                    }
+                    MainNavigator.navigateBack(this@MainActivity, backStack)
                 }
             }
         }

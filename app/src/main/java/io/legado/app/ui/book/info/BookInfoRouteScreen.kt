@@ -55,8 +55,6 @@ fun BookInfoRouteScreen(
     origin: String? = null,
     coverPath: String? = null,
     viewModel: BookInfoViewModel,
-    /** 一镜到底进场时只把简介留到 morph 跑完再画（多行正文在窗口形变时量字会重叠），其余内容首帧即画；Nav3 路由默认 false */
-    deferIntro: Boolean = false,
     onBack: () -> Boolean = { true },
     onFinish: (resultCode: Int?, afterTransition: Boolean) -> Boolean = { _, _ -> true },
     onOpenSearch: (String) -> Unit,
@@ -263,7 +261,6 @@ fun BookInfoRouteScreen(
             .collectAsStateWithLifecycle(persistentListOf<BookGroup>()).value,
         onIntent = viewModel::onIntent,
         onBack = { onBack() },
-        deferIntro = deferIntro,
         onOpenExplore = { title, url ->
             val origin = uiState.book?.origin
             if (!origin.isNullOrBlank()) {

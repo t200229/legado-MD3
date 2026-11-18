@@ -406,8 +406,6 @@ object MainRouteConst {
     const val ROUTE_SEARCH = "search"
     const val ROUTE_SEARCH_CONTENT = "book/searchContent"
     const val ROUTE_BOOK_INFO = "book/info"
-    const val ROUTE_BOOK_INFO_EDIT = "book/info/edit"
-    const val ROUTE_TOC = "book/toc"
     const val ROUTE_BOOK_CHARACTER_DETAIL = "book/character/detail"
     const val ROUTE_BOOK_CHARACTER_NETWORK = "book/character/network"
     const val ROUTE_BOOK_CHARACTER_LIST = "book/character/list"
