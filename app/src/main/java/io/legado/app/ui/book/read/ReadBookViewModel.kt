@@ -1136,7 +1136,16 @@ class ReadBookViewModel(
             }
 
             is ReadBookIntent.ShowSheet -> {
-                if (intent.sheet is ReadBookSheet.HighlightRuleConfig) {
+                if (_uiState.value.activeSheet?.let { it::class == intent.sheet::class } == true) {
+                    // 要开的浮层已经在顶层：收起动画还没跑完时 withSheet 会返回相同的栈、
+                    // StateFlow 不发射，MochiSheet 的 show() 永远不会重跑，点按被吞掉。
+                    // 先撤掉，等一帧再重开；两次更新必须分开，连续写会被 Compose 合并。
+                    _uiState.update { it.withSheet(null) }
+                    viewModelScope.launch {
+                        delay(100)
+                        _uiState.update { it.withSheet(intent.sheet) }
+                    }
+                } else if (intent.sheet is ReadBookSheet.HighlightRuleConfig) {
                     highlightRuleDelegate.load()
                     _uiState.update { it.withSheet(intent.sheet) }
                 } else if (

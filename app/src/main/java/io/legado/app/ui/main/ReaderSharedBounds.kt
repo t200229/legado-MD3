@@ -68,9 +68,9 @@ fun Modifier.readerSharedBounds(
             // 展开的就成了淡出的一张纸而不是一块板。
             enter = fadeIn(animationSpec = tween(140)),
             // 返回书架时把正文压在封面之上：封面那一侧的 sharedBounds 用的是库默认 fadeIn()（spring），
-            // 几百毫秒就满了，而正文是自己的 600ms 淡出。overlay 里谁在上面谁决定观感——封面在上面
+            // 几百毫秒就满了，而正文是自己的 300ms 淡出。overlay 里谁在上面谁决定观感——封面在上面
             // 就是「先闪出封面、再看着它缩小」，正文在上面才是打开动画的倒放（边缩小边让正文化掉、露出封面）。
-            exit = fadeOut(animationSpec = tween(600)),
+            exit = fadeOut(animationSpec = tween(300)),
             boundsTransform = BoundsTransform { _, _ -> readerBoundsSpring },
             resizeMode = ResizeMode.scaleToBounds(ContentScale.None, Alignment.TopStart),
             zIndexInOverlay = 1f,
@@ -96,6 +96,7 @@ private class AnimatedCornerShape(private val radiusDp: () -> Float) : Shape {
     }
 }
 
-/** 与 `ReadAloudMorphState.SETTLE_SPEC` 同一条弹簧（那里是 Float，这里要 Rect，只保留同样的阻尼与刚度）。 */
+/** 与 `ReadAloudMorphState.SETTLE_SPEC` 同一条弹簧（那里是 Float，这里要 Rect，只保留同样的阻尼与刚度）。
+ * -6 曾把刚度提到 500，用户手机上觉得书架卡片开合更卡，改回 260。 */
 private val readerBoundsSpring: FiniteAnimationSpec<Rect> =
     spring(dampingRatio = 1f, stiffness = 260f)

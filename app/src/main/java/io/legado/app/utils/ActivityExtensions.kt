@@ -10,6 +10,8 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.view.WindowInsetsAnimationControlListener
+import android.view.WindowInsetsAnimationController
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.view.WindowMetrics
@@ -159,6 +161,56 @@ fun Activity.toggleSystemBar(show: Boolean) {
             systemBarsBehavior = BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
+}
+
+/**
+ * 系统栏直接出现/消失，不走系统约 300ms 的滑入滑出动画。
+ * API 30+：用 controlWindowInsetsAnimation 接管后立刻把栏位移到目标状态再 finish；
+ * 接管失败、被取消或低版本时，退回普通的 show()/hide()。
+ * 另有 200ms 后的一次兜底 show()/hide()：栏已在位时是空操作，接管失败时保证栏一定出现。
+ */
+fun Activity.setSystemBarsInstant(show: Boolean) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+        toggleSystemBar(show)
+        return
+    }
+    val controller = window.insetsController
+    if (controller == null) {
+        toggleSystemBar(show)
+        return
+    }
+    try {
+        controller.controlWindowInsetsAnimation(
+            WindowInsets.Type.systemBars(),
+            0,
+            null,
+            null,
+            object : WindowInsetsAnimationControlListener {
+                override fun onReady(
+                    controller: WindowInsetsAnimationController,
+                    types: Int,
+                ) {
+                    // 只调 finish 不会真的把栏位移过去，必须先把 insets 设到目标状态。
+                    if (show) {
+                        controller.setInsetsAndAlpha(controller.shownStateInsets, 1f, 1f)
+                    } else {
+                        controller.setInsetsAndAlpha(controller.hiddenStateInsets, 1f, 1f)
+                    }
+                    controller.finish(show)
+                }
+
+                override fun onFinished(controller: WindowInsetsAnimationController) = Unit
+
+                override fun onCancelled(controller: WindowInsetsAnimationController?) {
+                    this@setSystemBarsInstant.toggleSystemBar(show)
+                }
+            },
+        )
+    } catch (_: Exception) {
+        toggleSystemBar(show)
+    }
+    // 兜底：接管没生效时栏也一定出现（已在位时 show()/hide() 是空操作）。
+    window.decorView.postDelayed({ toggleSystemBar(show) }, 200)
 }
 
 /////以下方法需要在View完全被绘制出来之后调用，否则判断不了,在比如 onWindowFocusChanged（）方法中可以得到正确的结果/////

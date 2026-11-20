@@ -79,6 +79,7 @@ fun BubbleStyleSheet(
         show = show,
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.bubble_config),
+        animateContentSize = false,
         endAction = {
             MediumTonalButton(
                 onClick = {

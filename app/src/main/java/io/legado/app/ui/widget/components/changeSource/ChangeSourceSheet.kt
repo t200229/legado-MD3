@@ -245,6 +245,7 @@ fun ChangeSourceSheet(
         show = show,
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.change_origin),
+        animateContentSize = false,
         startAction = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 AppActionMenu(

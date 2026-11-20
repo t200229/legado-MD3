@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -105,6 +106,7 @@ fun ReaderMoreActionsSheet(
         show = show,
         onDismissRequest = onDismissRequest,
         contentPaddingEnabled = false,
+        animateContentSize = false,
     ) {
         Box(modifier = Modifier.padding(horizontal = 16.dp)) {
             ReaderBookHeader(book = state.book)
@@ -161,19 +163,23 @@ private fun MoreActionsPager(
     } else {
         Modifier
     }
+    // 面板先开、格子后补：首帧只量出等高占位，fitHeight 立刻确定，弹簧马上启动；
+    // 格子晚一帧填进来（和书卡“弹窗秒开、卡片后补”同一个取舍）。
+    var contentReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { contentReady = true }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth().then(scrollModifier)) {
         val itemSize = (maxWidth - 56.dp) / 4
         val rowCount = if (actions.size > 4) 2 else 1
-        HorizontalPager(
-            state = pagerState,
-            // 页数很少，手势频繁停在边界；保留平台 stretch 过冲会在松手后反向回弹。
-            overscrollEffect = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(
-                    itemSize * rowCount + if (rowCount == 2) 24.dp else 16.dp
-                ),
-        ) { page ->
+        val pagerHeight = itemSize * rowCount + if (rowCount == 2) 24.dp else 16.dp
+        if (contentReady) {
+            HorizontalPager(
+                state = pagerState,
+                // 页数很少，手势频繁停在边界；保留平台 stretch 过冲会在松手后反向回弹。
+                overscrollEffect = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(pagerHeight),
+            ) { page ->
             val pageItems = pages[page]
             Column(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
@@ -197,6 +203,9 @@ private fun MoreActionsPager(
                     }
                 }
             }
+        }
+        } else {
+            Spacer(Modifier.fillMaxWidth().height(pagerHeight))
         }
     }
 }
@@ -227,7 +236,9 @@ private fun ActionSquareHost(
             },
             onMoreClick = { expanded = true },
         )
-        when (action.id) {
+        // 收起态不组合菜单：3 个菜单引擎 + 2 个下拉框只在展开时建，首帧省几毫秒；
+        // 点带菜单的格子时菜单晚一帧出现，小下拉框的开场动画会盖住。
+        if (expanded) when (action.id) {
             "source_custom_button" -> AppActionMenu(
                 groups = persistentListOf(
                     AppActionGroup(

@@ -1,11 +1,16 @@
 package io.legado.app.ui.widget.components.mochi
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -23,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
@@ -67,7 +73,26 @@ internal fun AppMochiTitleBar(
     var navigationWidth by remember { mutableIntStateOf(0) }
     var actionsWidth by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    Column(modifier.windowInsetsPadding(TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal))) {
+    // 库顶栏高度 = 状态栏 inset + 56dp：阅读页隐藏状态栏时 inset 归零，顶栏矮一截，
+    // 书架整体上移，共享元素落点就量错了。-5 版用 remember 存上次见到的高度，但书架页
+    // 在打开阅读页时就被拆掉、返回时重建，remember 从 0 开始，隐藏期间 live=0 永远
+    // 补不上，顶栏照样矮一截。改成忽略可见性的采样：它在隐藏时也不变，不需要记，
+    // 每次组合都直接算出正确的补偿，顶栏高度恒定——和 Material 顶栏一样不跟状态栏走。
+    // 多窗口下窗口本来就不贴状态栏，不补偿。
+    val inMultiWindow = (LocalContext.current as? Activity)?.isInMultiWindowMode == true
+    val liveStatusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val fullStatusBarTop =
+        WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding()
+    val topCompensation = if (inMultiWindow) {
+        0.dp
+    } else {
+        (fullStatusBarTop - liveStatusBarTop).coerceAtLeast(0.dp)
+    }
+    Column(
+        modifier
+            .windowInsetsPadding(TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal))
+            .padding(top = topCompensation)
+    ) {
         Box {
             // Native TitleBar reserves a fixed 64dp for each side. Existing app bars can
             // contain several actions; reserve their real width for the native blur text.

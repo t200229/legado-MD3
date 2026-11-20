@@ -273,6 +273,9 @@ private fun ReaderBookSheet(
         onDismissRequest = onDismissRequest,
         animateContentSize = false,
         contentPaddingEnabled = false,
+        // 半屏目录：上滑保持半屏，不展开全屏（Mochi 下 FitContent 单档不可上拉）；
+        // 全屏仍可走标签长按进全屏页，下滑关闭不受影响。
+        mochiAllowExpand = false,
         modifier = Modifier
             .heightIn(max = maxHeight),
     ) {

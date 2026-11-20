@@ -69,6 +69,7 @@ fun ChangeChapterSourceSheet(
         show = show,
         onDismissRequest = onAnimationFinish,
         title = if (state.showToc) state.selectedSourceName else stringResource(R.string.chapter_change_source),
+        animateContentSize = false,
         startAction = {
             if (!state.showToc) {
                 AppActionMenu(

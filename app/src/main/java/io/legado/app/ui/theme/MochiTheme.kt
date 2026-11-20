@@ -12,8 +12,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextMotion
+import ui.feice.mochi.anim.MochiMotions
 import ui.feice.mochi.effect.overscroll.ProvideMochiOverscroll
 import ui.feice.mochi.theme.MochiColorScheme
+import ui.feice.mochi.theme.MochiMotionScheme
 import ui.feice.mochi.theme.MochiTextStyles
 import ui.feice.mochi.theme.MochiTheme
 import ui.feice.mochi.theme.defaultTextStyles
@@ -37,6 +39,15 @@ internal fun ProvideMochiTheme(
         colors = colors,
         textStyles = textStyles,
         systemBarAppearance = false,
+        // 菜单展开慢不在等待上，在开场动画本身：Ios26 默认 openSpatial 0.40s、内容要等形状长到 15% 才淡入，
+        // 点下去约 0.45s 菜单才定住。形变 0.28s、内容 0.05 就淡入，全部 Mochi 菜单（书架 ⋮ 也一样）一起变快。
+        motionScheme = MochiMotionScheme(
+            menu = MochiMotions.Ios26.copy(
+                openSpatial = MochiMotions.responseSpring(0.28f, 0.8f),
+                openEffects = MochiMotions.responseSpring(0.18f, 1f),
+                contentAt = 0.05f,
+            ),
+        ),
         materials = iosMaterials(
             isDark = isDark,
             glass = Build.VERSION.SDK_INT >= 33 && settings.appShell.useFloatingBottomBarLiquidGlass,

@@ -114,6 +114,7 @@ fun ReaderAudioDownloadSheet(
         show = show,
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.read_aloud_audio_download_entry),
+        animateContentSize = false,
         startAction = {
             MediumTonalButton(
                 onClick = onDismissRequest,

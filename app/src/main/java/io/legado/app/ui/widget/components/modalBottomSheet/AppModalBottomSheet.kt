@@ -145,6 +145,12 @@ fun AppModalBottomSheet(
     contentPaddingEnabled: Boolean = true,
     sheetGesturesEnabled: Boolean = true,
     mochiLayout: MochiSheetLayout = MochiSheetLayout.HalfScreen,
+    /**
+     * Mochi 下是否允许上滑展开到全屏。关掉时 MochiSheet 只留 FitContent 一档，
+     * 单档不可上拉，面板保持半屏；下滑关闭仍可用，全屏走调用方的显式入口。
+     * 默认开，保持其他面板现有行为。
+     */
+    mochiAllowExpand: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colorScheme = LocalLegadoThemeColors.current.colorScheme
@@ -163,8 +169,14 @@ fun AppModalBottomSheet(
         val registry = LocalMochiBackdropRegistry.current
         // 与 M3 / Miuix 一致：先按内容高度停靠，内容超过可用高度时停在全屏并让正文滚动。
         // Large 只作为可上拉的上限，初始停靠点始终是 FitContent。
+        // mochiAllowExpand 关掉时只留 FitContent 一档：FitContent 单档不可上拉，
+        // 面板保持半屏（下滑关闭仍可用，全屏走调用方的显式入口）。
         val state = rememberMochiSheetState(
-            detents = listOf(MochiSheetDetent.FitContent, MochiSheetDetent.Large),
+            detents = if (mochiAllowExpand) {
+                listOf(MochiSheetDetent.FitContent, MochiSheetDetent.Large)
+            } else {
+                listOf(MochiSheetDetent.FitContent)
+            },
         )
         LaunchedEffect(state, show) {
             if (show) state.show() else state.hide()
@@ -318,7 +330,7 @@ fun AppModalBottomSheet(
                 )
             }
         }
-        ComposeEngine.Material, ComposeEngine.Mochi, ComposeEngine.Coui -> {
+        ComposeEngine.Oxygen, ComposeEngine.Material, ComposeEngine.Mochi, ComposeEngine.Coui -> {
             if (show) {
                 val sheetState = rememberBottomSheetState(
                     initialValue = Hidden,
@@ -467,6 +479,7 @@ fun <T> AppModalBottomSheet(
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.modalWindowInsets },
     sheetGesturesEnabled: Boolean = true,
     mochiLayout: MochiSheetLayout = MochiSheetLayout.HalfScreen,
+    mochiAllowExpand: Boolean = true,
     content: @Composable ColumnScope.(T) -> Unit
 ) {
     var cachedData by remember { mutableStateOf(data) }
@@ -487,6 +500,7 @@ fun <T> AppModalBottomSheet(
         contentWindowInsets = contentWindowInsets,
         sheetGesturesEnabled = sheetGesturesEnabled,
         mochiLayout = mochiLayout,
+        mochiAllowExpand = mochiAllowExpand,
         content = {
             if (currentData != null) {
                 content(currentData)

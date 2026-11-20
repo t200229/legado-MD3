@@ -212,9 +212,7 @@ fun SplicedColumnGroup(
                         }
                     }
                 }
-                ComposeEngine.Material, ComposeEngine.Mochi, ComposeEngine.Coui -> {
-                    // Material 引擎之前没有画卡片底色：组是透明的，只剩文字浮在页面底色上。
-                    // 和 Mochi 分支用同一个 token（surfaceContainer），切主题/深浅色一起跟。
+                ComposeEngine.Oxygen, ComposeEngine.Material, ComposeEngine.Mochi, ComposeEngine.Coui -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

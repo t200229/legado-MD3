@@ -207,17 +207,17 @@ import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-/** 全屏书页（阅读/漫画）走普通 nav3 场景：与文本阅读页同一段 600ms 交叉淡入淡出。 */
+/** 全屏书页（阅读/漫画）走普通 nav3 场景：与文本阅读页同一段 300ms 交叉淡入淡出。 */
 private fun readerEntryMetadata(predictiveBackEnabled: Boolean) = metadata {
     put(NavDisplay.TransitionKey) {
-        fadeIn(animationSpec = tween(600)) togetherWith fadeOut(animationSpec = tween(600))
+        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
     }
     put(NavDisplay.PopTransitionKey) {
-        fadeIn(animationSpec = tween(600)) togetherWith fadeOut(animationSpec = tween(600))
+        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
     }
     if (predictiveBackEnabled) {
         put(NavDisplay.PredictivePopTransitionKey) { _ ->
-            fadeIn(animationSpec = tween(600)) togetherWith fadeOut(animationSpec = tween(600))
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
         }
     }
 }

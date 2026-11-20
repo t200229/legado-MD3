@@ -104,6 +104,7 @@ import io.legado.app.ui.theme.ComposeEngine
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.LocalAppUiConfiguration
 import io.legado.app.ui.widget.components.text.AppText
+import io.legado.app.utils.setSystemBarsInstant
 import io.legado.app.utils.takePersistablePermissionSafely
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.CancellationException
@@ -243,7 +244,14 @@ fun ReadBookRouteScreen(
             true
         } else {
             onNavigateBack().also { popped ->
-                if (popped) isDismissed = true
+                if (popped) {
+                    isDismissed = true
+                    // 返回已确认：转场开始前直接把状态栏恢复出来（不走系统滑入动画），
+                    // 配 B2 的顶栏定高，书架不滑动。
+                    if (appUiConfiguration.appShell.showStatusBar) {
+                        controller.activity.setSystemBarsInstant(true)
+                    }
+                }
             }
         }
     }
