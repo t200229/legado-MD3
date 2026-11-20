@@ -462,6 +462,7 @@ object MainNavigator {
         backStack: MutableList<NavKey>,
         tracker: MainNavRouteTracker? = null,
         fromRoute: NavKey? = null,
+        beforePop: (() -> Unit)? = null,
     ): Boolean {
         if (fromRoute != null) {
             if (backStack.lastOrNull() != fromRoute) {
@@ -471,6 +472,7 @@ object MainNavigator {
             return false
         }
         if (backStack.size > 1) {
+            beforePop?.invoke()
             backNavigationInProgress = true
             backStack.removeLastOrNull()
             tracker?.onBackStackChanged(backStack)

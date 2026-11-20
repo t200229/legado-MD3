@@ -14,6 +14,7 @@ import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -141,6 +142,7 @@ class ReadBookController(
     ReadBook.ReaderRenderCallback {
 
     private var routeInitialized = false
+    private var routeExitPending = false
 
     private val readSettingsGateway get() = org.koin.core.context.GlobalContext.get().get<io.legado.app.domain.gateway.ReadSettingsGateway>()
     private val aloudSettingsGateway get() = org.koin.core.context.GlobalContext.get().get<io.legado.app.domain.gateway.ReadAloudSettingsGateway>()
@@ -1945,6 +1947,7 @@ class ReadBookController(
 
     /** View/Window lifecycle work; business session work stays in the ViewModel. */
     fun onResume() {
+        routeExitPending = false
         setOrientation()
         upSystemUiVisibility()
         upScreenTimeOut()
@@ -1960,7 +1963,8 @@ class ReadBookController(
         stopAutoPage()
         unregisterTimeBatteryReceiver()
         networkChangedListener.unRegister()
-        upSystemUiVisibility()
+        // The host restores its system bars before the outgoing transition; don't override it here.
+        if (!routeExitPending) upSystemUiVisibility()
         if (!BuildConfig.DEBUG) Backup.autoBack(activity)
     }
 
@@ -1969,6 +1973,10 @@ class ReadBookController(
 
     override fun closeReadBook() {
         onClose?.invoke() ?: activity.finish()
+    }
+
+    override fun prepareForRouteExit() {
+        routeExitPending = true
     }
 
     @SuppressLint("WrongConstant")
@@ -1986,26 +1994,22 @@ class ReadBookController(
                 } else {
                     show(WindowInsets.Type.statusBars())
                 }
+                if (toolBarHide &&
+                    (ReadBookConfig.hideNavigationBar || ReadBookConfig.hideStatusBar)
+                ) {
+                    systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
             }
         }
 
         // Legacy flags
-        var flag = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_IMMERSIVE
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-        if (!isInMultiWindow) {
-            flag = flag or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        }
-        if (ReadBookConfig.hideNavigationBar) {
-            flag = flag or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            if (toolBarHide) {
-                flag = flag or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-            }
-        }
-        if (ReadBookConfig.hideStatusBar && toolBarHide) {
-            flag = flag or View.SYSTEM_UI_FLAG_FULLSCREEN
-        }
-        window.decorView.systemUiVisibility = flag
+        readerLegacySystemUiVisibilityFlags(
+            sdkInt = Build.VERSION.SDK_INT,
+            isInMultiWindow = isInMultiWindow,
+            toolBarHide = toolBarHide,
+            hideNavigationBar = ReadBookConfig.hideNavigationBar,
+            hideStatusBar = ReadBookConfig.hideStatusBar,
+        )?.let { window.decorView.systemUiVisibility = it }
 
         if (toolBarHide) {
             activity.setLightStatusBar(ReadBookConfig.durConfig.curStatusIconDark())

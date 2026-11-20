@@ -104,7 +104,7 @@ import io.legado.app.ui.theme.ComposeEngine
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.LocalAppUiConfiguration
 import io.legado.app.ui.widget.components.text.AppText
-import io.legado.app.utils.setSystemBarsInstant
+import io.legado.app.utils.toggleSystemBar
 import io.legado.app.utils.takePersistablePermissionSafely
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.CancellationException
@@ -122,6 +122,8 @@ interface ReadBookRouteHost {
     val isInMultiWindowModeCompat: Boolean
 
     fun closeReadBook()
+
+    fun prepareForRouteExit()
 
     fun previewBrightness(value: Int)
 
@@ -246,10 +248,12 @@ fun ReadBookRouteScreen(
             onNavigateBack().also { popped ->
                 if (popped) {
                     isDismissed = true
-                    // 返回已确认：转场开始前直接把状态栏恢复出来（不走系统滑入动画），
-                    // 配 B2 的顶栏定高，书架不滑动。
+                    // 返回已确认：转场开始前用普通 show 恢复状态栏。controlWindowInsetsAnimation
+                    // 的 instant 在退出窗口内多次拿不到控制（-7/-8/-9 共 12 次全失败），只留它
+                    // 会把栏拖到 1.5s 才出现；普通 show 约 275ms 滑入，与 300ms 转场基本重叠，
+                    // 栏在转场内到位、只动一次。配 B2 的顶栏定高，书架不滑动。
                     if (appUiConfiguration.appShell.showStatusBar) {
-                        controller.activity.setSystemBarsInstant(true)
+                        controller.activity.toggleSystemBar(true)
                     }
                 }
             }

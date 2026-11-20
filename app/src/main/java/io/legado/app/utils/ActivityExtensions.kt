@@ -10,14 +10,13 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
-import android.view.WindowInsetsAnimationControlListener
-import android.view.WindowInsetsAnimationController
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.view.WindowMetrics
 import android.widget.FrameLayout
 import androidx.annotation.ColorInt
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -153,6 +152,11 @@ fun Activity.keepScreenOn(on: Boolean) {
 }
 
 fun Activity.toggleSystemBar(show: Boolean) {
+    if (show) {
+        // 先清 legacy 位：阅读页藏栏写下的 SYSTEM_UI_FLAG_FULLSCREEN 不清掉，
+        // 框架在窗口重布局/焦点变化时重应用 decorView 的 flag，会把刚显出来的栏再藏回去（时有时无）。
+        clearLegacyFullscreenFlags()
+    }
     WindowCompat.getInsetsController(window, window.decorView).run {
         if (show) {
             show(WindowInsetsCompat.Type.systemBars())
@@ -164,53 +168,42 @@ fun Activity.toggleSystemBar(show: Boolean) {
 }
 
 /**
- * 系统栏直接出现/消失，不走系统约 300ms 的滑入滑出动画。
- * API 30+：用 controlWindowInsetsAnimation 接管后立刻把栏位移到目标状态再 finish；
- * 接管失败、被取消或低版本时，退回普通的 show()/hide()。
- * 另有 200ms 后的一次兜底 show()/hide()：栏已在位时是空操作，接管失败时保证栏一定出现。
+ * 清掉阅读页藏栏时写下的 legacy 全屏标志。
+ *
+ * `upSystemUiVisibility`（ReadBookController）藏栏时直接给 decorView 写 `systemUiVisibility`：
+ * `SYSTEM_UI_FLAG_FULLSCREEN`（hideStatusBar && toolBarHide 时）、`SYSTEM_UI_FLAG_HIDE_NAVIGATION`，
+ * 且无条件置位 IMMERSIVE / IMMERSIVE_STICKY。退出窗口的显栏（performExit 的普通 show /
+ * onDispose 的检查兜底）全走 WindowInsetsController，从来不清这组 legacy 位。只在显栏路径清，藏栏路径一个字不动。
+ * 只清隐藏类标志，LAYOUT 系列标志（LAYOUT_STABLE / LAYOUT_FULLSCREEN / LAYOUT_HIDE_NAVIGATION）
+ * 保留，edge-to-edge 布局不受影响。
  */
-fun Activity.setSystemBarsInstant(show: Boolean) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-        toggleSystemBar(show)
+@Suppress("DEPRECATION")
+private fun Activity.clearLegacyFullscreenFlags() {
+    val decorView = window.decorView
+    decorView.systemUiVisibility = decorView.systemUiVisibility and
+        View.SYSTEM_UI_FLAG_FULLSCREEN.inv() and
+        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION.inv() and
+        View.SYSTEM_UI_FLAG_IMMERSIVE.inv() and
+        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY.inv()
+}
+
+/**
+ * 阅读页退出时的最后一道显栏（onDispose 里调用）。
+ *
+ * performExit 里已普通 show 过一次；300ms 后检查状态栏是否真的出现了，仍未出现才
+ * 再普通 show 一次兜底。退出窗口里只有这两处显栏写操作，不会互相打断。
+ * hide 时直接普通藏栏（show=false 时阅读期间栏本就藏着，正常情况无需动作）。
+ */
+fun Activity.restoreSystemBarsAfterReaderExit(show: Boolean) {
+    if (!show) {
+        toggleSystemBar(false)
         return
     }
-    val controller = window.insetsController
-    if (controller == null) {
-        toggleSystemBar(show)
-        return
-    }
-    try {
-        controller.controlWindowInsetsAnimation(
-            WindowInsets.Type.systemBars(),
-            0,
-            null,
-            null,
-            object : WindowInsetsAnimationControlListener {
-                override fun onReady(
-                    controller: WindowInsetsAnimationController,
-                    types: Int,
-                ) {
-                    // 只调 finish 不会真的把栏位移过去，必须先把 insets 设到目标状态。
-                    if (show) {
-                        controller.setInsetsAndAlpha(controller.shownStateInsets, 1f, 1f)
-                    } else {
-                        controller.setInsetsAndAlpha(controller.hiddenStateInsets, 1f, 1f)
-                    }
-                    controller.finish(show)
-                }
-
-                override fun onFinished(controller: WindowInsetsAnimationController) = Unit
-
-                override fun onCancelled(controller: WindowInsetsAnimationController?) {
-                    this@setSystemBarsInstant.toggleSystemBar(show)
-                }
-            },
-        )
-    } catch (_: Exception) {
-        toggleSystemBar(show)
-    }
-    // 兜底：接管没生效时栏也一定出现（已在位时 show()/hide() 是空操作）。
-    window.decorView.postDelayed({ toggleSystemBar(show) }, 200)
+    window.decorView.postDelayed({
+        val visible = ViewCompat.getRootWindowInsets(window.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.statusBars()) == true
+        if (!visible) toggleSystemBar(true)
+    }, 300)
 }
 
 /////以下方法需要在View完全被绘制出来之后调用，否则判断不了,在比如 onWindowFocusChanged（）方法中可以得到正确的结果/////

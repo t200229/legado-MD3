@@ -71,7 +71,17 @@ fun Modifier.readerSharedBounds(
             // 几百毫秒就满了，而正文是自己的 300ms 淡出。overlay 里谁在上面谁决定观感——封面在上面
             // 就是「先闪出封面、再看着它缩小」，正文在上面才是打开动画的倒放（边缩小边让正文化掉、露出封面）。
             exit = fadeOut(animationSpec = tween(300)),
-            boundsTransform = BoundsTransform { _, _ -> readerBoundsSpring },
+            // 收拢（返回书架）与展开（打开阅读页）用不同的 bounds 曲线：
+            // 展开用临界阻尼弹簧，收拢改用与场景转场同长的 tween。弹簧 260 要约 410ms 才收敛到 1%，
+            // 但场景转场只有 300ms，收尾会拖一下再 snap 到卡片上 —— 返回时页面那一下晃就是它。
+            // tween 在 300ms 准时落位，不留尾巴；打开方向不动，仍用 260 的弹簧。
+            boundsTransform = BoundsTransform { initialBounds, targetBounds ->
+                if (initialBounds.width > targetBounds.width) {
+                    tween(durationMillis = 300)
+                } else {
+                    readerBoundsSpring
+                }
+            },
             resizeMode = ResizeMode.scaleToBounds(ContentScale.None, Alignment.TopStart),
             zIndexInOverlay = 1f,
             clipInOverlayDuringTransition = OverlayClip(clipShape),

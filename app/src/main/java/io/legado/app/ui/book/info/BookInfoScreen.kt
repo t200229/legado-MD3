@@ -39,7 +39,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -1148,13 +1147,10 @@ private fun BookInfoBackdrop(
                     memoryCacheKey = currentBook.coverPath?.let { "$it#book-info-backdrop" },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(if (currentBook.style.blurCover) 552.dp else 480.dp)
+                        .height(480.dp)
                         .then(
                             if (currentBook.style.blurCover) {
-                                // blur 在图层边缘按高斯曲线淡到透明，尾巴约 2–3σ：24dp 上移只盖住最陡一段，
-                                // 屏顶仍有约 40dp 半透明（-6 用户验证还在）；72dp（≈3σ）才把尾巴彻底推出屏外，
-                                // 底部边缘与原来一致（552−72=480dp）。
-                                Modifier.offset(y = -72.dp).blur(24.dp)
+                                Modifier.blur(24.dp)
                             } else {
                                 Modifier
                             }

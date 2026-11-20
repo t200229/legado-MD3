@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -73,25 +74,27 @@ internal fun AppMochiTitleBar(
     var navigationWidth by remember { mutableIntStateOf(0) }
     var actionsWidth by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    // 库顶栏高度 = 状态栏 inset + 56dp：阅读页隐藏状态栏时 inset 归零，顶栏矮一截，
-    // 书架整体上移，共享元素落点就量错了。-5 版用 remember 存上次见到的高度，但书架页
-    // 在打开阅读页时就被拆掉、返回时重建，remember 从 0 开始，隐藏期间 live=0 永远
-    // 补不上，顶栏照样矮一截。改成忽略可见性的采样：它在隐藏时也不变，不需要记，
-    // 每次组合都直接算出正确的补偿，顶栏高度恒定——和 Material 顶栏一样不跟状态栏走。
-    // 多窗口下窗口本来就不贴状态栏，不补偿。
+    // 顶栏高度只用一个恒定源。之前 B2 的补偿算术（full - live）理论上恒定，
+    // 但组合时读数与布局时读数不在同一帧更新：状态栏滑入动画期间 live 从 0
+    // 渐变到满格，total 上下抖约 25px，书架跟着晃（视频逐帧量过，底部栏不动）。
+    // 改成把状态栏 inset 在外层消费掉：子树（库内 MochiTitleBar 的
+    // .statusBarsPadding() 与标题 Column 的 .statusBarsPadding()）读到的实时
+    // inset 恒为 0，库顶栏高 = 0 + 56dp 恒定；外层顶距直接取忽略可见性的恒定值
+    // fullStatusBarTop，不再算 full - live。状态栏滑入动画再也推不动书架。
+    // 多窗口下窗口本来就不贴状态栏，保持原有行为（不消费、不补偿）。
     val inMultiWindow = (LocalContext.current as? Activity)?.isInMultiWindowMode == true
-    val liveStatusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val fullStatusBarTop =
         WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding()
-    val topCompensation = if (inMultiWindow) {
+    val topPadding = if (inMultiWindow) {
         0.dp
     } else {
-        (fullStatusBarTop - liveStatusBarTop).coerceAtLeast(0.dp)
+        fullStatusBarTop
     }
     Column(
         modifier
             .windowInsetsPadding(TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal))
-            .padding(top = topCompensation)
+            .then(if (inMultiWindow) Modifier else Modifier.consumeWindowInsets(WindowInsets.statusBars))
+            .padding(top = topPadding)
     ) {
         Box {
             // Native TitleBar reserves a fixed 64dp for each side. Existing app bars can

@@ -968,7 +968,18 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
                                     animationSpec = tween(easing = FastOutSlowInEasing)
                                 ) + fadeOut(animationSpec = tween())))
                             },
-                            onBack = { MainNavigator.navigateBack(this@MainActivity, backStack) },
+                            onBack = {
+                                MainNavigator.navigateBack(
+                                    this@MainActivity,
+                                    backStack,
+                                    beforePop = {
+                                        if (backStack.lastOrNull() is MainRouteReadBook) {
+                                            (activeReadBookInputHandler as? ReadBookRouteHost)
+                                                ?.prepareForRouteExit()
+                                        }
+                                    },
+                                )
+                            },
                             entryProvider = mainEntryProvider(
                                 backStack = backStack,
                                 configuration = configuration,
@@ -1109,7 +1120,16 @@ open class MainActivity : BaseComposeActivity(), AudioPlay.CallBack {
                         playerPresent = playerVisible || morphPresent,
                     )
                 ) {
-                    MainNavigator.navigateBack(this@MainActivity, backStack)
+                    MainNavigator.navigateBack(
+                        this@MainActivity,
+                        backStack,
+                        beforePop = {
+                            if (backStack.lastOrNull() is MainRouteReadBook) {
+                                (activeReadBookInputHandler as? ReadBookRouteHost)
+                                    ?.prepareForRouteExit()
+                            }
+                        },
+                    )
                 }
             }
         }

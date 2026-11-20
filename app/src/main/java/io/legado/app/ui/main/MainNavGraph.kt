@@ -196,7 +196,7 @@ import io.legado.app.utils.openUrl
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.startActivityForBook
 import io.legado.app.utils.toastOnUi
-import io.legado.app.utils.toggleSystemBar
+import io.legado.app.utils.restoreSystemBarsAfterReaderExit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.collectLatest
@@ -1087,6 +1087,9 @@ fun MainActivity.mainEntryProvider(
                         backStack,
                         navRouteTracker,
                         fromRoute = route,
+                        beforePop = {
+                            controller.prepareForRouteExit()
+                        },
                     )
                 },
             )
@@ -1126,7 +1129,9 @@ fun MainActivity.mainEntryProvider(
                     MainActivity.hasActiveReadBookRoute = false
                     controller.onClose = null
                     controller.clearTts()
-                    this@mainEntryProvider.toggleSystemBar(configuration.appShell.showStatusBar)
+                    // 最后一道显栏：300ms 后检查仍未出现才普通 show 一次兜底。performExit 里已
+                    // 普通 show 过一次，退出窗口里只有这两处显栏写操作，不会互相打断。
+                    this@mainEntryProvider.restoreSystemBarsAfterReaderExit(configuration.appShell.showStatusBar)
                 }
             }
 
